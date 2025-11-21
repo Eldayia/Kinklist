@@ -6,6 +6,7 @@
     <title>Kinklist - Liste de Préférences Accessible</title>
     <meta name="description" content="Créez et partagez votre kinklist avec une interface accessible aux daltoniens">
     <link rel="stylesheet" href="style.css">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
     <header>
@@ -62,7 +63,8 @@
                     <option value="no">Non merci</option>
                     <option value="limit">Hard Limit</option>
                 </select>
-                <button id="export-btn" class="btn btn-primary">Exporter ma liste</button>
+                <button id="export-btn" class="btn btn-primary">Exporter (JSON)</button>
+                <button id="export-image-btn" class="btn btn-primary">Exporter (Image)</button>
                 <button id="import-btn" class="btn btn-secondary">Importer une liste</button>
                 <button id="reset-btn" class="btn btn-danger">Réinitialiser</button>
             </div>
@@ -77,6 +79,7 @@
         <div class="container">
             <p>Site accessible aux daltoniens grâce à l'utilisation de formes distinctes</p>
             <p>Les icônes utilisent des formes différentes pour faciliter la distinction : cercle plein, carré, triangle, losange, croix et étoile</p>
+            <p class="developer-credit">Développé par EldaDev</p>
         </div>
     </footer>
 
