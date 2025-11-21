@@ -373,7 +373,7 @@ function exportKinklistAsImage() {
         <h2 style="margin: 0 0 15px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Légende</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 15px;">
             <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="width: 20px; height: 20px; background: #d81b60; border-radius: 50%; display: inline-block;"></span> J'adore
+                <span style="color: #d81b60; font-size: 20px;">❤</span> J'adore
             </span>
             <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
                 <span style="width: 20px; height: 20px; background: #1e88e5; border-radius: 4px; display: inline-block;"></span> J'aime
@@ -388,7 +388,7 @@ function exportKinklistAsImage() {
                 <span style="color: #757575; font-size: 20px; font-weight: bold;">✕</span> Non merci
             </span>
             <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="color: #000; font-size: 20px;">★</span> Hard Limit
+                <span style="color: #000; font-size: 20px;">⚠</span> Hard Limit
             </span>
         </div>
     `;
@@ -407,12 +407,12 @@ function exportKinklistAsImage() {
     // Helper function to get status display
     function getStatusIcon(status) {
         const icons = {
-            love: '<span style="width: 16px; height: 16px; background: #d81b60; border-radius: 50%; display: inline-block; vertical-align: middle;"></span>',
+            love: '<span style="color: #d81b60; font-size: 16px; vertical-align: middle;">❤</span>',
             like: '<span style="width: 16px; height: 16px; background: #1e88e5; border-radius: 3px; display: inline-block; vertical-align: middle;"></span>',
             curious: '<span style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #ffa726; display: inline-block; vertical-align: middle;"></span>',
             maybe: '<span style="width: 11px; height: 11px; background: #9c27b0; transform: rotate(45deg); border-radius: 2px; display: inline-block; vertical-align: middle;"></span>',
             no: '<span style="color: #757575; font-size: 16px; font-weight: bold; vertical-align: middle;">✕</span>',
-            limit: '<span style="color: #000; font-size: 16px; vertical-align: middle;">★</span>'
+            limit: '<span style="color: #000; font-size: 16px; vertical-align: middle;">⚠</span>'
         };
         return icons[status] || '';
     }
@@ -455,7 +455,7 @@ function exportKinklistAsImage() {
         margin-top: 20px;
     `;
     footer.innerHTML = `
-        <p style="margin: 0 0 5px 0; opacity: 0.9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Site accessible aux daltoniens</p>
+        <p style="margin: 0 0 5px 0; opacity: 0.9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Site accessible aux daltoniens - Icônes : cœur, carré, triangle, losange, croix et point d'exclamation</p>
         <p style="margin: 0; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Développé par EldaDev</p>
     `;
     exportContainer.appendChild(footer);
