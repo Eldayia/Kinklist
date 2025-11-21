@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinklist - Liste de Préférences Accessible</title>
+    <meta name="description" content="Créez et partagez votre kinklist avec une interface accessible aux daltoniens">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Ma Kinklist</h1>
+            <p class="subtitle">Explorez et partagez vos préférences avec une interface accessible</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="legend-section">
+            <h2>Légende</h2>
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="icon icon-love" aria-label="J'adore"></span>
+                    <span class="icon-label">J'adore</span>
+                </div>
+                <div class="legend-item">
+                    <span class="icon icon-like" aria-label="J'aime"></span>
+                    <span class="icon-label">J'aime</span>
+                </div>
+                <div class="legend-item">
+                    <span class="icon icon-curious" aria-label="Curieux/se"></span>
+                    <span class="icon-label">Curieux/se</span>
+                </div>
+                <div class="legend-item">
+                    <span class="icon icon-maybe" aria-label="Peut-être"></span>
+                    <span class="icon-label">Peut-être</span>
+                </div>
+                <div class="legend-item">
+                    <span class="icon icon-no" aria-label="Non merci"></span>
+                    <span class="icon-label">Non merci</span>
+                </div>
+                <div class="legend-item">
+                    <span class="icon icon-limit" aria-label="Hard Limit"></span>
+                    <span class="icon-label">Hard Limit</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="controls-section">
+            <div class="controls">
+                <input type="text" id="search" placeholder="Rechercher un kink..." aria-label="Rechercher dans la liste">
+                <select id="category-filter" aria-label="Filtrer par catégorie">
+                    <option value="all">Toutes les catégories</option>
+                </select>
+                <select id="status-filter" aria-label="Filtrer par statut">
+                    <option value="all">Tous les statuts</option>
+                    <option value="selected">Sélectionnés uniquement</option>
+                    <option value="love">J'adore</option>
+                    <option value="like">J'aime</option>
+                    <option value="curious">Curieux/se</option>
+                    <option value="maybe">Peut-être</option>
+                    <option value="no">Non merci</option>
+                    <option value="limit">Hard Limit</option>
+                </select>
+                <button id="export-btn" class="btn btn-primary">Exporter ma liste</button>
+                <button id="import-btn" class="btn btn-secondary">Importer une liste</button>
+                <button id="reset-btn" class="btn btn-danger">Réinitialiser</button>
+            </div>
+        </section>
+
+        <section class="kinklist-section">
+            <div id="kinklist-container"></div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Site accessible aux daltoniens grâce à l'utilisation de formes distinctes</p>
+            <p>Les icônes utilisent des formes différentes pour faciliter la distinction : cercle plein, carré, triangle, losange, croix et étoile</p>
+        </div>
+    </footer>
+
+    <input type="file" id="import-input" accept=".json" style="display: none;" aria-label="Fichier d'importation">
+
+    <script src="kinks-data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
