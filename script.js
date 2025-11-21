@@ -324,83 +324,22 @@ function exportKinklist() {
     alert('Votre kinklist a été exportée avec succès !');
 }
 
-// Export kinklist as image
+// Export kinklist as image (méthode native sans dépendance externe)
 function exportKinklistAsImage() {
-    // Check if html2canvas is loaded
-    if (typeof html2canvas === 'undefined') {
-        alert('Erreur: La bibliothèque d\'export n\'est pas chargée. Veuillez rafraîchir la page et réessayer.');
-        return;
-    }
-
-    // Show loading indicator
     const exportBtn = document.getElementById('export-image-btn');
     const originalText = exportBtn.textContent;
     exportBtn.textContent = 'Génération en cours...';
     exportBtn.disabled = true;
 
-    // Create a temporary container for the export
-    const exportContainer = document.createElement('div');
-    exportContainer.id = 'export-container';
-    exportContainer.style.cssText = `
-        position: absolute;
-        left: -9999px;
-        top: 0;
-        width: 1200px;
-        background: #f5f5f5;
-        padding: 20px;
-    `;
+    // Check if there are any selections
+    if (Object.keys(kinkSelections).length === 0) {
+        alert('Vous n\'avez aucune sélection à exporter. Sélectionnez des kinks avant d\'exporter en image.');
+        exportBtn.textContent = originalText;
+        exportBtn.disabled = false;
+        return;
+    }
 
-    // Create header
-    const header = document.createElement('div');
-    header.style.cssText = `
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        text-align: center;
-    `;
-    header.innerHTML = `
-        <h1 style="font-size: 2rem; margin: 0 0 10px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Ma Kinklist</h1>
-        <p style="margin: 0; opacity: 0.9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Exportée le ${new Date().toLocaleDateString('fr-FR')}</p>
-    `;
-    exportContainer.appendChild(header);
-
-    // Create legend
-    const legend = document.createElement('div');
-    legend.style.cssText = `
-        background: white;
-        padding: 20px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    `;
-    legend.innerHTML = `
-        <h2 style="margin: 0 0 15px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Légende</h2>
-        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-            <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="width: 20px; height: 20px; background: #d81b60; border-radius: 50%; display: inline-block;"></span> J'adore
-            </span>
-            <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="width: 20px; height: 20px; background: #1e88e5; border-radius: 4px; display: inline-block;"></span> J'aime
-            </span>
-            <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 17px solid #ffa726; display: inline-block;"></span> Curieux/se
-            </span>
-            <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="width: 14px; height: 14px; background: #9c27b0; transform: rotate(45deg); border-radius: 2px; display: inline-block;"></span> Peut-être
-            </span>
-            <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="color: #757575; font-size: 20px; font-weight: bold;">✕</span> Non merci
-            </span>
-            <span style="display: flex; align-items: center; gap: 8px; background: #f5f5f5; padding: 8px 12px; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                <span style="color: #000; font-size: 24px;">★</span> Hard Limit
-            </span>
-        </div>
-    `;
-    exportContainer.appendChild(legend);
-
-    // Create categories with selections only
+    // Organize selections by category
     const categoriesWithSelections = {};
     Object.entries(kinkSelections).forEach(([kinkId, status]) => {
         const [category, kink] = kinkId.split('::');
@@ -410,117 +349,264 @@ function exportKinklistAsImage() {
         categoriesWithSelections[category].push({ kink, status });
     });
 
-    // Helper function to get status display
-    function getStatusIcon(status) {
-        const icons = {
-            love: '<span style="width: 16px; height: 16px; background: #d81b60; border-radius: 50%; display: inline-block; vertical-align: middle;"></span>',
-            like: '<span style="width: 16px; height: 16px; background: #1e88e5; border-radius: 3px; display: inline-block; vertical-align: middle;"></span>',
-            curious: '<span style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #ffa726; display: inline-block; vertical-align: middle;"></span>',
-            maybe: '<span style="width: 11px; height: 11px; background: #9c27b0; transform: rotate(45deg); border-radius: 2px; display: inline-block; vertical-align: middle;"></span>',
-            no: '<span style="color: #757575; font-size: 16px; font-weight: bold; vertical-align: middle;">✕</span>',
-            limit: '<span style="color: #000; font-size: 18px; vertical-align: middle;">★</span>'
-        };
-        return icons[status] || '';
-    }
+    // Configuration
+    const config = {
+        width: 1200,
+        padding: 40,
+        headerHeight: 100,
+        legendHeight: 80,
+        categoryHeaderHeight: 50,
+        itemHeight: 40,
+        itemsPerRow: 3,
+        itemGap: 10,
+        sectionGap: 30,
+        footerHeight: 80,
+        colors: {
+            love: '#d81b60',
+            like: '#1e88e5',
+            curious: '#ffa726',
+            maybe: '#9c27b0',
+            no: '#757575',
+            limit: '#000000'
+        },
+        labels: {
+            love: "J'adore",
+            like: "J'aime",
+            curious: "Curieux/se",
+            maybe: "Peut-être",
+            no: "Non merci",
+            limit: "Hard Limit"
+        }
+    };
 
-    // Create each category
-    Object.entries(categoriesWithSelections).forEach(([category, kinks]) => {
-        const categoryDiv = document.createElement('div');
-        categoryDiv.style.cssText = `
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        `;
-
-        let kinksHtml = kinks.map(({ kink, status }) => `
-            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f5f5f5; border-radius: 6px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-                ${getStatusIcon(status)}
-                <span>${kink}</span>
-            </div>
-        `).join('');
-
-        categoryDiv.innerHTML = `
-            <h3 style="margin: 0 0 15px 0; font-size: 1.2rem; color: #212121; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">${category}</h3>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                ${kinksHtml}
-            </div>
-        `;
-        exportContainer.appendChild(categoryDiv);
+    // Calculate total height
+    let totalHeight = config.padding * 2 + config.headerHeight + config.legendHeight + config.footerHeight;
+    Object.values(categoriesWithSelections).forEach(kinks => {
+        const rows = Math.ceil(kinks.length / config.itemsPerRow);
+        totalHeight += config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap)) + config.sectionGap;
     });
 
-    // Create footer
-    const footer = document.createElement('div');
-    footer.style.cssText = `
-        background: #212121;
-        color: white;
-        padding: 20px;
-        border-radius: 12px;
-        text-align: center;
-        margin-top: 20px;
-    `;
-    footer.innerHTML = `
-        <p style="margin: 0 0 5px 0; opacity: 0.9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Site accessible aux daltoniens - Icônes : rond, carré, triangle, losange, croix et étoile</p>
-        <p style="margin: 0; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Développé par EldaDev</p>
-    `;
-    exportContainer.appendChild(footer);
+    // Create canvas
+    const canvas = document.createElement('canvas');
+    const scale = 2; // For high DPI
+    canvas.width = config.width * scale;
+    canvas.height = totalHeight * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
 
-    // Add to body
-    document.body.appendChild(exportContainer);
+    // Background
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, config.width, totalHeight);
 
-    // Check if there are any selections
-    if (Object.keys(kinkSelections).length === 0) {
-        alert('Vous n\'avez aucune sélection à exporter. Sélectionnez des kinks avant d\'exporter en image.');
-        document.body.removeChild(exportContainer);
-        exportBtn.textContent = originalText;
-        exportBtn.disabled = false;
-        return;
-    }
+    let y = config.padding;
 
-    // Use html2canvas to generate the image
-    setTimeout(() => {
-        html2canvas(exportContainer, {
-            backgroundColor: '#f5f5f5',
-            scale: 2,
-            useCORS: true,
-            logging: true,
-            allowTaint: true
-        }).then(canvas => {
-            // Create download link with proper method
-            const link = document.createElement('a');
-            const filename = `kinklist-${new Date().toISOString().split('T')[0]}.png`;
+    // Draw header with gradient
+    const headerGradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
+    headerGradient.addColorStop(0, '#667eea');
+    headerGradient.addColorStop(1, '#764ba2');
+    ctx.fillStyle = headerGradient;
+    roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.headerHeight, 12, true, false);
 
-            // Convert canvas to blob for better compatibility
-            canvas.toBlob(function(blob) {
-                if (blob) {
-                    const url = URL.createObjectURL(blob);
-                    link.href = url;
-                    link.download = filename;
-                    link.style.display = 'none';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Ma Kinklist', config.width / 2, y + 45);
+    ctx.font = '16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText('Exportée le ' + new Date().toLocaleDateString('fr-FR'), config.width / 2, y + 75);
+    ctx.globalAlpha = 1;
 
-                    // Cleanup
-                    document.body.removeChild(exportContainer);
-                    exportBtn.textContent = originalText;
-                    exportBtn.disabled = false;
+    y += config.headerHeight + 20;
 
-                    alert('Votre kinklist a été exportée en image avec succès !');
-                } else {
-                    throw new Error('Impossible de créer le blob');
+    // Draw legend
+    ctx.fillStyle = 'white';
+    roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.legendHeight, 12, true, false);
+
+    ctx.fillStyle = '#212121';
+    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Légende', config.padding + 20, y + 28);
+
+    // Draw legend items
+    const legendItems = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
+    let legendX = config.padding + 20;
+    const legendY = y + 50;
+    legendItems.forEach(status => {
+        // Background pill
+        ctx.fillStyle = '#f5f5f5';
+        const pillWidth = ctx.measureText(config.labels[status]).width + 50;
+        roundRect(ctx, legendX, legendY - 12, pillWidth, 30, 6, true, false);
+
+        // Draw icon
+        drawStatusIcon(ctx, status, legendX + 12, legendY, config.colors);
+
+        // Draw label
+        ctx.fillStyle = '#212121';
+        ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.fillText(config.labels[status], legendX + 32, legendY + 5);
+
+        legendX += pillWidth + 15;
+    });
+
+    y += config.legendHeight + 20;
+
+    // Draw categories
+    Object.entries(categoriesWithSelections).forEach(([category, kinks]) => {
+        const rows = Math.ceil(kinks.length / config.itemsPerRow);
+        const categoryHeight = config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap));
+
+        // Category background
+        ctx.fillStyle = 'white';
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, categoryHeight, 12, true, false);
+
+        // Category title
+        ctx.fillStyle = '#212121';
+        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(category, config.padding + 20, y + 32);
+
+        // Draw items
+        const itemWidth = (config.width - config.padding * 2 - 60) / config.itemsPerRow;
+        kinks.forEach((item, index) => {
+            const col = index % config.itemsPerRow;
+            const row = Math.floor(index / config.itemsPerRow);
+            const itemX = config.padding + 20 + col * (itemWidth + config.itemGap);
+            const itemY = y + config.categoryHeaderHeight + row * (config.itemHeight + config.itemGap);
+
+            // Item background
+            ctx.fillStyle = '#f5f5f5';
+            roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 6, true, false);
+
+            // Draw status icon
+            drawStatusIcon(ctx, item.status, itemX + 12, itemY + config.itemHeight / 2, config.colors);
+
+            // Draw kink name
+            ctx.fillStyle = '#212121';
+            ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            ctx.textAlign = 'left';
+            const maxTextWidth = itemWidth - 50;
+            let text = item.kink;
+            if (ctx.measureText(text).width > maxTextWidth) {
+                while (ctx.measureText(text + '...').width > maxTextWidth && text.length > 0) {
+                    text = text.slice(0, -1);
                 }
-            }, 'image/png');
-        }).catch(error => {
-            console.error('Error exporting image:', error);
-            document.body.removeChild(exportContainer);
+                text += '...';
+            }
+            ctx.fillText(text, itemX + 35, itemY + config.itemHeight / 2 + 5);
+        });
+
+        y += categoryHeight + config.sectionGap;
+    });
+
+    // Draw footer
+    ctx.fillStyle = '#212121';
+    roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, true, false);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText('Site accessible aux daltoniens - Icônes : rond, carré, triangle, losange, croix et étoile', config.width / 2, y + 30);
+    ctx.globalAlpha = 1;
+    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+    ctx.fillText('Développé par EldaDev', config.width / 2, y + 55);
+
+    // Download the image
+    try {
+        canvas.toBlob(function(blob) {
+            if (blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `kinklist-${new Date().toISOString().split('T')[0]}.png`;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                alert('Votre kinklist a été exportée en image avec succès !');
+            } else {
+                throw new Error('Impossible de créer l\'image');
+            }
             exportBtn.textContent = originalText;
             exportBtn.disabled = false;
-            alert('Erreur lors de l\'exportation en image: ' + error.message);
-        });
-    }, 100);
+        }, 'image/png');
+    } catch (error) {
+        console.error('Error exporting image:', error);
+        alert('Erreur lors de l\'exportation: ' + error.message);
+        exportBtn.textContent = originalText;
+        exportBtn.disabled = false;
+    }
+}
+
+// Helper function to draw rounded rectangles
+function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    if (fill) ctx.fill();
+    if (stroke) ctx.stroke();
+}
+
+// Helper function to draw status icons
+function drawStatusIcon(ctx, status, x, y, colors) {
+    ctx.save();
+    switch (status) {
+        case 'love': // Rond
+            ctx.fillStyle = colors.love;
+            ctx.beginPath();
+            ctx.arc(x, y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            break;
+        case 'like': // Carré
+            ctx.fillStyle = colors.like;
+            roundRect(ctx, x - 8, y - 8, 16, 16, 3, true, false);
+            break;
+        case 'curious': // Triangle
+            ctx.fillStyle = colors.curious;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 9);
+            ctx.lineTo(x + 9, y + 7);
+            ctx.lineTo(x - 9, y + 7);
+            ctx.closePath();
+            ctx.fill();
+            break;
+        case 'maybe': // Losange
+            ctx.fillStyle = colors.maybe;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillRect(-6, -6, 12, 12);
+            ctx.restore();
+            break;
+        case 'no': // Croix
+            ctx.strokeStyle = colors.no;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x - 6, y - 6);
+            ctx.lineTo(x + 6, y + 6);
+            ctx.moveTo(x + 6, y - 6);
+            ctx.lineTo(x - 6, y + 6);
+            ctx.stroke();
+            break;
+        case 'limit': // Étoile
+            ctx.fillStyle = colors.limit;
+            ctx.font = '18px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('★', x, y);
+            break;
+    }
+    ctx.restore();
 }
 
 // Import kinklist
