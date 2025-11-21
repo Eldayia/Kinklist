@@ -99,11 +99,21 @@ header h1 {
     border: 2px solid transparent;
 }
 
-/* J'adore - Cercle plein */
+/* J'adore - Cœur rouge */
 .icon-love {
-    background-color: var(--color-love);
-    border-radius: 50%;
-    border-color: var(--color-love);
+    background: transparent;
+    position: relative;
+}
+
+.icon-love::before {
+    content: '❤';
+    position: absolute;
+    font-size: 28px;
+    line-height: 32px;
+    color: var(--color-love);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 /* J'aime - Carré */
@@ -170,16 +180,16 @@ header h1 {
     transform: translate(-50%, -50%) rotate(45deg);
 }
 
-/* Hard Limit - Étoile */
+/* Hard Limit - Point d'exclamation */
 .icon-limit {
     background: transparent;
     position: relative;
 }
 
 .icon-limit::before {
-    content: '★';
+    content: '⚠';
     position: absolute;
-    font-size: 32px;
+    font-size: 28px;
     line-height: 32px;
     color: var(--color-limit);
     left: 50%;
@@ -391,6 +401,13 @@ footer {
 footer p {
     margin: 0.5rem 0;
     opacity: 0.9;
+}
+
+footer .developer-credit {
+    margin-top: 1rem;
+    font-weight: 600;
+    opacity: 1;
+    font-size: 1.1rem;
 }
 
 /* Responsive */
