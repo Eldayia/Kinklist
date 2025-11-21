@@ -324,19 +324,69 @@ function exportKinklist() {
     alert('Votre kinklist a été exportée avec succès !');
 }
 
-// Export kinklist as image
-function exportKinklistAsImage() {
-    // Check if html2canvas is loaded
-    if (typeof html2canvas === 'undefined') {
-        alert('Erreur: La bibliothèque d\'export n\'est pas chargée. Veuillez rafraîchir la page et réessayer.');
-        return;
-    }
+// Liste des CDN pour html2canvas (fallbacks)
+const HTML2CANVAS_CDNS = [
+    'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+];
 
+// Charger html2canvas dynamiquement
+function loadHtml2Canvas() {
+    return new Promise((resolve, reject) => {
+        if (typeof html2canvas !== 'undefined') {
+            resolve();
+            return;
+        }
+
+        let cdnIndex = 0;
+
+        function tryNextCDN() {
+            if (cdnIndex >= HTML2CANVAS_CDNS.length) {
+                reject(new Error('Impossible de charger la bibliothèque d\'export depuis aucun CDN.'));
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = HTML2CANVAS_CDNS[cdnIndex];
+            script.onload = () => {
+                if (typeof html2canvas !== 'undefined') {
+                    resolve();
+                } else {
+                    cdnIndex++;
+                    tryNextCDN();
+                }
+            };
+            script.onerror = () => {
+                cdnIndex++;
+                tryNextCDN();
+            };
+            document.head.appendChild(script);
+        }
+
+        tryNextCDN();
+    });
+}
+
+// Export kinklist as image
+async function exportKinklistAsImage() {
     // Show loading indicator
     const exportBtn = document.getElementById('export-image-btn');
     const originalText = exportBtn.textContent;
-    exportBtn.textContent = 'Génération en cours...';
+    exportBtn.textContent = 'Chargement...';
     exportBtn.disabled = true;
+
+    // Try to load html2canvas if not already loaded
+    try {
+        await loadHtml2Canvas();
+    } catch (error) {
+        alert('Erreur: ' + error.message + '\n\nVotre navigateur bloque peut-être les scripts externes. Essayez de désactiver le blocage de suivi ou utilisez l\'export JSON à la place.');
+        exportBtn.textContent = originalText;
+        exportBtn.disabled = false;
+        return;
+    }
+
+    exportBtn.textContent = 'Génération en cours...';
 
     // Create a temporary container for the export
     const exportContainer = document.createElement('div');
