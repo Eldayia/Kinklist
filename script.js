@@ -479,31 +479,48 @@ function exportKinklistAsImage() {
     }
 
     // Use html2canvas to generate the image
-    html2canvas(exportContainer, {
-        backgroundColor: '#f5f5f5',
-        scale: 2,
-        useCORS: true,
-        logging: false
-    }).then(canvas => {
-        // Create download link
-        const link = document.createElement('a');
-        link.download = `kinklist-${new Date().toISOString().split('T')[0]}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+    setTimeout(() => {
+        html2canvas(exportContainer, {
+            backgroundColor: '#f5f5f5',
+            scale: 2,
+            useCORS: true,
+            logging: true,
+            allowTaint: true
+        }).then(canvas => {
+            // Create download link with proper method
+            const link = document.createElement('a');
+            const filename = `kinklist-${new Date().toISOString().split('T')[0]}.png`;
 
-        // Cleanup
-        document.body.removeChild(exportContainer);
-        exportBtn.textContent = originalText;
-        exportBtn.disabled = false;
+            // Convert canvas to blob for better compatibility
+            canvas.toBlob(function(blob) {
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    link.href = url;
+                    link.download = filename;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
 
-        alert('Votre kinklist a été exportée en image avec succès !');
-    }).catch(error => {
-        console.error('Error exporting image:', error);
-        document.body.removeChild(exportContainer);
-        exportBtn.textContent = originalText;
-        exportBtn.disabled = false;
-        alert('Erreur lors de l\'exportation en image. Veuillez réessayer.');
-    });
+                    // Cleanup
+                    document.body.removeChild(exportContainer);
+                    exportBtn.textContent = originalText;
+                    exportBtn.disabled = false;
+
+                    alert('Votre kinklist a été exportée en image avec succès !');
+                } else {
+                    throw new Error('Impossible de créer le blob');
+                }
+            }, 'image/png');
+        }).catch(error => {
+            console.error('Error exporting image:', error);
+            document.body.removeChild(exportContainer);
+            exportBtn.textContent = originalText;
+            exportBtn.disabled = false;
+            alert('Erreur lors de l\'exportation en image: ' + error.message);
+        });
+    }, 100);
 }
 
 // Import kinklist
