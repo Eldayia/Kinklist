@@ -35,8 +35,94 @@ Chaque forme utilise également une couleur pour un double encodage, mais les fo
 
 ## 🚀 Utilisation
 
-### Ouvrir le site
+### Option 1 : Utilisation locale (sans Docker)
 Ouvrez simplement `index.html` dans votre navigateur web.
+
+### Option 2 : Déploiement avec Docker 🐳
+
+#### Prérequis
+- Docker installé sur votre système
+- Docker Compose installé (inclus avec Docker Desktop)
+
+#### Configuration rapide
+
+1. **Cloner le dépôt**
+```bash
+git clone <votre-repo>
+cd Kinklist
+```
+
+2. **Configuration des variables d'environnement (optionnel)**
+```bash
+cp .env.example .env
+# Éditez le fichier .env pour personnaliser le port
+```
+
+3. **Lancer l'application avec Docker Compose**
+```bash
+docker-compose up -d
+```
+
+L'application sera accessible sur `http://localhost:8080` (ou le port que vous avez configuré).
+
+#### Commandes Docker utiles
+
+**Démarrer l'application**
+```bash
+docker-compose up -d
+```
+
+**Arrêter l'application**
+```bash
+docker-compose down
+```
+
+**Voir les logs**
+```bash
+docker-compose logs -f
+```
+
+**Reconstruire l'image après modifications**
+```bash
+docker-compose up -d --build
+```
+
+**Vérifier le statut**
+```bash
+docker-compose ps
+```
+
+#### Variables d'environnement
+
+Créez un fichier `.env` à la racine du projet avec les variables suivantes :
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `PORT` | Port d'écoute sur la machine hôte | `8080` |
+| `NGINX_HOST` | Nom d'hôte nginx | `localhost` |
+
+**Exemple de fichier `.env` :**
+```env
+PORT=8080
+NGINX_HOST=localhost
+```
+
+#### Architecture Docker
+
+Le projet utilise :
+- **Image de base** : `nginx:alpine` (légère et optimisée)
+- **Serveur web** : Nginx pour servir les fichiers statiques
+- **Port exposé** : 80 (mappé sur le port configuré)
+- **Health check** : Vérifie automatiquement que l'application fonctionne
+- **Restart policy** : Redémarre automatiquement en cas d'erreur
+
+#### Configuration avancée
+
+Pour modifier la configuration nginx, éditez le fichier `nginx.conf`. La configuration inclut :
+- Headers de sécurité (X-Frame-Options, X-Content-Type-Options, etc.)
+- Compression gzip pour optimiser les performances
+- Cache des assets statiques
+- Configuration optimisée pour les applications SPA
 
 ### Sélectionner vos préférences
 1. Parcourez les catégories
@@ -83,6 +169,11 @@ Kinklist/
 ├── style.css           # Styles et icônes accessibles
 ├── script.js           # Logique interactive
 ├── kinks-data.js       # Base de données des kinks
+├── Dockerfile          # Configuration Docker
+├── docker-compose.yml  # Orchestration Docker
+├── nginx.conf          # Configuration Nginx
+├── .dockerignore       # Fichiers exclus du build Docker
+├── .env.example        # Exemple de variables d'environnement
 └── README.md           # Documentation
 ```
 
