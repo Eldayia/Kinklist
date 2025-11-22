@@ -324,218 +324,225 @@ function exportKinklist() {
     alert('Votre kinklist a été exportée avec succès !');
 }
 
-// Export kinklist as image (méthode native sans dépendance externe)
-function exportKinklistAsImage() {
+// Export kinklist as image (robuste avec repli html2canvas)
+async function exportKinklistAsImage() {
     const exportBtn = document.getElementById('export-image-btn');
     const originalText = exportBtn.textContent;
     exportBtn.textContent = 'Génération en cours...';
     exportBtn.disabled = true;
 
-    // Check if there are any selections
-    if (Object.keys(kinkSelections).length === 0) {
-        alert('Vous n\'avez aucune sélection à exporter. Sélectionnez des kinks avant d\'exporter en image.');
-        exportBtn.textContent = originalText;
-        exportBtn.disabled = false;
-        return;
-    }
-
-    // Organize selections by category
-    const categoriesWithSelections = {};
-    Object.entries(kinkSelections).forEach(([kinkId, status]) => {
-        const [category, kink] = kinkId.split('::');
-        if (!categoriesWithSelections[category]) {
-            categoriesWithSelections[category] = [];
+    try {
+        // 1) Sélections nécessaires
+        if (Object.keys(kinkSelections).length === 0) {
+            alert('Vous n\'avez aucune sélection à exporter. Sélectionnez des kinks avant d\'exporter en image.');
+            return;
         }
-        categoriesWithSelections[category].push({ kink, status });
-    });
 
-    // Configuration
-    const config = {
-        width: 1200,
-        padding: 40,
-        headerHeight: 100,
-        legendHeight: 80,
-        categoryHeaderHeight: 50,
-        itemHeight: 40,
-        itemsPerRow: 3,
-        itemGap: 10,
-        sectionGap: 30,
-        footerHeight: 80,
-        colors: {
-            love: '#d81b60',
-            like: '#1e88e5',
-            curious: '#ffa726',
-            maybe: '#9c27b0',
-            no: '#757575',
-            limit: '#000000'
-        },
-        labels: {
-            love: "J'adore",
-            like: "J'aime",
-            curious: "Curieux/se",
-            maybe: "Peut-être",
-            no: "Non merci",
-            limit: "Hard Limit"
-        }
-    };
-
-    // Calculate total height
-    let totalHeight = config.padding * 2 + config.headerHeight + config.legendHeight + config.footerHeight;
-    Object.values(categoriesWithSelections).forEach(kinks => {
-        const rows = Math.ceil(kinks.length / config.itemsPerRow);
-        totalHeight += config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap)) + config.sectionGap;
-    });
-
-    // Create canvas
-    const canvas = document.createElement('canvas');
-    const scale = 2; // For high DPI
-    canvas.width = config.width * scale;
-    canvas.height = totalHeight * scale;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
-
-    // Background
-    ctx.fillStyle = '#f5f5f5';
-    ctx.fillRect(0, 0, config.width, totalHeight);
-
-    let y = config.padding;
-
-    // Draw header with gradient
-    const headerGradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
-    headerGradient.addColorStop(0, '#667eea');
-    headerGradient.addColorStop(1, '#764ba2');
-    ctx.fillStyle = headerGradient;
-    roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.headerHeight, 12, true, false);
-
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Ma Kinklist', config.width / 2, y + 45);
-    ctx.font = '16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-    ctx.globalAlpha = 0.9;
-    ctx.fillText('Exportée le ' + new Date().toLocaleDateString('fr-FR'), config.width / 2, y + 75);
-    ctx.globalAlpha = 1;
-
-    y += config.headerHeight + 20;
-
-    // Draw legend
-    ctx.fillStyle = 'white';
-    roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.legendHeight, 12, true, false);
-
-    ctx.fillStyle = '#212121';
-    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('Légende', config.padding + 20, y + 28);
-
-    // Draw legend items
-    const legendItems = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
-    let legendX = config.padding + 20;
-    const legendY = y + 50;
-    legendItems.forEach(status => {
-        // Background pill
-        ctx.fillStyle = '#f5f5f5';
-        const pillWidth = ctx.measureText(config.labels[status]).width + 50;
-        roundRect(ctx, legendX, legendY - 12, pillWidth, 30, 6, true, false);
-
-        // Draw icon
-        drawStatusIcon(ctx, status, legendX + 12, legendY, config.colors);
-
-        // Draw label
-        ctx.fillStyle = '#212121';
-        ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-        ctx.fillText(config.labels[status], legendX + 32, legendY + 5);
-
-        legendX += pillWidth + 15;
-    });
-
-    y += config.legendHeight + 20;
-
-    // Draw categories
-    Object.entries(categoriesWithSelections).forEach(([category, kinks]) => {
-        const rows = Math.ceil(kinks.length / config.itemsPerRow);
-        const categoryHeight = config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap));
-
-        // Category background
-        ctx.fillStyle = 'white';
-        roundRect(ctx, config.padding, y, config.width - config.padding * 2, categoryHeight, 12, true, false);
-
-        // Category title
-        ctx.fillStyle = '#212121';
-        ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(category, config.padding + 20, y + 32);
-
-        // Draw items
-        const itemWidth = (config.width - config.padding * 2 - 60) / config.itemsPerRow;
-        kinks.forEach((item, index) => {
-            const col = index % config.itemsPerRow;
-            const row = Math.floor(index / config.itemsPerRow);
-            const itemX = config.padding + 20 + col * (itemWidth + config.itemGap);
-            const itemY = y + config.categoryHeaderHeight + row * (config.itemHeight + config.itemGap);
-
-            // Item background
-            ctx.fillStyle = '#f5f5f5';
-            roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 6, true, false);
-
-            // Draw status icon
-            drawStatusIcon(ctx, item.status, itemX + 12, itemY + config.itemHeight / 2, config.colors);
-
-            // Draw kink name
-            ctx.fillStyle = '#212121';
-            ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-            ctx.textAlign = 'left';
-            const maxTextWidth = itemWidth - 50;
-            let text = item.kink;
-            if (ctx.measureText(text).width > maxTextWidth) {
-                while (ctx.measureText(text + '...').width > maxTextWidth && text.length > 0) {
-                    text = text.slice(0, -1);
-                }
-                text += '...';
-            }
-            ctx.fillText(text, itemX + 35, itemY + config.itemHeight / 2 + 5);
+        // 2) Agréger par catégories
+        const categoriesWithSelections = {};
+        Object.entries(kinkSelections).forEach(([kinkId, status]) => {
+            const [category, kink] = kinkId.split('::');
+            if (!categoriesWithSelections[category]) categoriesWithSelections[category] = [];
+            categoriesWithSelections[category].push({ kink, status });
         });
 
-        y += categoryHeight + config.sectionGap;
-    });
+        // 3) Config et hauteur totale
+        const config = {
+            width: 1200,
+            padding: 40,
+            headerHeight: 100,
+            legendHeight: 80,
+            categoryHeaderHeight: 50,
+            itemHeight: 40,
+            itemsPerRow: 3,
+            itemGap: 10,
+            sectionGap: 30,
+            footerHeight: 80,
+            colors: { love: '#d81b60', like: '#1e88e5', curious: '#ffa726', maybe: '#9c27b0', no: '#757575', limit: '#000000' },
+            labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit' }
+        };
 
-    // Draw footer
-    ctx.fillStyle = '#212121';
-    roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, true, false);
+        let totalHeight = config.padding * 2 + config.headerHeight + config.legendHeight + config.footerHeight;
+        Object.values(categoriesWithSelections).forEach(kinks => {
+            const rows = Math.ceil(kinks.length / config.itemsPerRow);
+            totalHeight += config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap)) + config.sectionGap;
+        });
 
-    ctx.fillStyle = 'white';
-    ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.globalAlpha = 0.9;
-    ctx.fillText('Site accessible aux daltoniens - Icônes : rond, carré, triangle, losange, croix et étoile', config.width / 2, y + 30);
-    ctx.globalAlpha = 1;
-    ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-    ctx.fillText('Développé par EldaDev', config.width / 2, y + 55);
-
-    // Download the image
-    try {
-        canvas.toBlob(function(blob) {
-            if (blob) {
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `kinklist-${new Date().toISOString().split('T')[0]}.png`;
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-                alert('Votre kinklist a été exportée en image avec succès !');
+        // 4) Limite de taille des canvases (Chrome/Edge/Firefox ~16k-32k)
+        const MAX_CANVAS = 16384; // sécurité multi-navigateurs
+        if (totalHeight > MAX_CANVAS) {
+            const proceed = confirm(
+                'Votre export contient beaucoup d\'éléments et dépasse la taille maximale compatible.\n' +
+                'Souhaitez-vous utiliser une capture de l\'interface actuelle à la place ? (html2canvas)\n\n' +
+                'Astuce : appliquez un filtre par catégorie pour réduire la hauteur et réessayez.'
+            );
+            if (proceed && typeof window.html2canvas === 'function') {
+                await exportUsingHtml2Canvas();
             } else {
-                throw new Error('Impossible de créer l\'image');
+                alert('Export annulé. Réduisez la liste via les filtres puis réessayez.');
             }
-            exportBtn.textContent = originalText;
-            exportBtn.disabled = false;
-        }, 'image/png');
+            return;
+        }
+
+        // 5) Dessiner sur canvas (méthode native)
+        const canvas = document.createElement('canvas');
+        const scale = 2; // HiDPI
+        canvas.width = config.width * scale;
+        canvas.height = totalHeight * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+
+        // Fond
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(0, 0, config.width, totalHeight);
+
+        let y = config.padding;
+
+        // En-tête dégradé
+        const headerGradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
+        headerGradient.addColorStop(0, '#667eea');
+        headerGradient.addColorStop(1, '#764ba2');
+        ctx.fillStyle = headerGradient;
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.headerHeight, 12, true, false);
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Ma Kinklist', config.width / 2, y + 45);
+        ctx.font = '16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.globalAlpha = 0.9;
+        ctx.fillText('Exportée le ' + new Date().toLocaleDateString('fr-FR'), config.width / 2, y + 75);
+        ctx.globalAlpha = 1;
+        y += config.headerHeight + 20;
+
+        // Légende
+        ctx.fillStyle = 'white';
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.legendHeight, 12, true, false);
+        ctx.fillStyle = '#212121';
+        ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Légende', config.padding + 20, y + 28);
+        const legendItems = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
+        let legendX = config.padding + 20;
+        const legendY = y + 50;
+        legendItems.forEach(status => {
+            ctx.fillStyle = '#f5f5f5';
+            const pillWidth = ctx.measureText(config.labels[status]).width + 50;
+            roundRect(ctx, legendX, legendY - 12, pillWidth, 30, 6, true, false);
+            drawStatusIcon(ctx, status, legendX + 12, legendY, config.colors);
+            ctx.fillStyle = '#212121';
+            ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            ctx.fillText(config.labels[status], legendX + 32, legendY + 5);
+            legendX += pillWidth + 15;
+        });
+        y += config.legendHeight + 20;
+
+        // Catégories + items
+        Object.entries(categoriesWithSelections).forEach(([category, kinks]) => {
+            const rows = Math.ceil(kinks.length / config.itemsPerRow);
+            const categoryHeight = config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap));
+            ctx.fillStyle = 'white';
+            roundRect(ctx, config.padding, y, config.width - config.padding * 2, categoryHeight, 12, true, false);
+            ctx.fillStyle = '#212121';
+            ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(category, config.padding + 20, y + 32);
+
+            const itemWidth = (config.width - config.padding * 2 - 60) / config.itemsPerRow;
+            kinks.forEach((item, index) => {
+                const col = index % config.itemsPerRow;
+                const row = Math.floor(index / config.itemsPerRow);
+                const itemX = config.padding + 20 + col * (itemWidth + config.itemGap);
+                const itemY = y + config.categoryHeaderHeight + row * (config.itemHeight + config.itemGap);
+                ctx.fillStyle = '#f5f5f5';
+                roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 6, true, false);
+                drawStatusIcon(ctx, item.status, itemX + 12, itemY + config.itemHeight / 2, config.colors);
+                ctx.fillStyle = '#212121';
+                ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                ctx.textAlign = 'left';
+                const maxTextWidth = itemWidth - 50;
+                let text = item.kink;
+                if (ctx.measureText(text).width > maxTextWidth) {
+                    while (ctx.measureText(text + '...').width > maxTextWidth && text.length > 0) text = text.slice(0, -1);
+                    text += '...';
+                }
+                ctx.fillText(text, itemX + 35, itemY + config.itemHeight / 2 + 5);
+            });
+
+            y += categoryHeight + config.sectionGap;
+        });
+
+        // Pied de page
+        ctx.fillStyle = '#212121';
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, true, false);
+        ctx.fillStyle = 'white';
+        ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = 0.9;
+        ctx.fillText('Site accessible aux daltoniens - Icônes : rond, carré, triangle, losange, croix et étoile', config.width / 2, y + 30);
+        ctx.globalAlpha = 1;
+        ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.fillText('Développé par EldaDev', config.width / 2, y + 55);
+
+        // 6) Générer et télécharger
+        const blob = await canvasToBlobAsync(canvas);
+        if (!blob) throw new Error('Impossible de créer l\'image');
+        downloadBlob(`kinklist-${new Date().toISOString().split('T')[0]}.png`, blob);
+        alert('Votre kinklist a été exportée en image avec succès !');
     } catch (error) {
-        console.error('Error exporting image:', error);
-        alert('Erreur lors de l\'exportation: ' + error.message);
+        console.error('Erreur export image:', error);
+        // Repli html2canvas si dispo
+        if (typeof window.html2canvas === 'function') {
+            try {
+                await exportUsingHtml2Canvas();
+                return;
+            } catch (e2) {
+                console.error('Repli html2canvas échoué:', e2);
+                alert('Échec de l\'exportation en image. Ouvrez la console pour plus de détails.');
+            }
+        } else {
+            alert('Échec de l\'exportation en image.');
+        }
+    } finally {
         exportBtn.textContent = originalText;
         exportBtn.disabled = false;
+    }
+
+    // Helpers internes
+    async function canvasToBlobAsync(canvas) {
+        if (canvas.toBlob) {
+            return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        }
+        // Polyfill via dataURL
+        const dataUrl = canvas.toDataURL('image/png');
+        const res = await fetch(dataUrl);
+        return await res.blob();
+    }
+
+    function downloadBlob(filename, blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    async function exportUsingHtml2Canvas() {
+        const target = document.querySelector('main.container') || document.body;
+        const canvas = await window.html2canvas(target, {
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            scale: 2,
+            windowWidth: target.scrollWidth,
+            windowHeight: target.scrollHeight
+        });
+        const blob = await canvasToBlobAsync(canvas);
+        if (!blob) throw new Error('Capture html2canvas impossible');
+        downloadBlob(`kinklist-${new Date().toISOString().split('T')[0]}.png`, blob);
+        alert('Votre kinklist a été exportée en image (mode capture) !');
     }
 }
 

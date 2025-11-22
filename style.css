@@ -401,6 +401,25 @@ footer .developer-credit {
     font-size: 1.1rem;
 }
 
+footer a {
+    color: #64b5f6;
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.3s;
+    border-bottom: 2px solid transparent;
+}
+
+footer a:hover {
+    color: #ffffff;
+    border-bottom-color: #64b5f6;
+}
+
+footer a:focus {
+    outline: 2px solid #64b5f6;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     header h1 {
