@@ -8,6 +8,7 @@ const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
     loadFromLocalStorage();
+    loadSharedData(); // Check for shared data in URL
     renderKinklist();
     setupEventListeners();
     populateCategoryFilter();
@@ -254,6 +255,10 @@ function setupEventListeners() {
     statusFilter.addEventListener('change', () => {
         applyFilters();
     });
+
+    // Share button
+    const shareBtn = document.getElementById('share-btn');
+    shareBtn.addEventListener('click', generateShareLink);
 
     // Export button (Image)
     const exportImageBtn = document.getElementById('export-image-btn');
@@ -575,6 +580,111 @@ function drawStatusIcon(ctx, status, x, y, colors) {
             break;
     }
     ctx.restore();
+}
+
+// Compression and encoding functions for sharing
+function compressAndEncode(data) {
+    // Convert to JSON string
+    const jsonStr = JSON.stringify(data);
+    // Convert to base64 with URL-safe characters
+    const encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+        return String.fromCharCode(parseInt(p1, 16));
+    }));
+    // Make it URL-safe
+    return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodeAndDecompress(encoded) {
+    try {
+        // Restore base64 padding and standard characters
+        let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        // Decode from base64
+        const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(base64), (c) => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        console.error('Error decoding shared data:', e);
+        return null;
+    }
+}
+
+// Generate share link
+function generateShareLink() {
+    if (Object.keys(kinkSelections).length === 0) {
+        alert('Vous n\'avez aucune sélection à partager. Sélectionnez des kinks avant de partager.');
+        return;
+    }
+
+    const encoded = compressAndEncode(kinkSelections);
+    const url = new URL(window.location.href);
+    url.hash = `share=${encoded}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(url.toString()).then(() => {
+        alert('Lien de partage copié dans le presse-papier !\n\nPartagez ce lien pour que d\'autres puissent voir votre kinklist.');
+    }).catch(() => {
+        // Fallback: show the link in a prompt
+        prompt('Copiez ce lien pour partager votre kinklist :', url.toString());
+    });
+}
+
+// Load shared data from URL
+function loadSharedData() {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#share=')) {
+        const encoded = hash.substring(7); // Remove '#share='
+        const sharedSelections = decodeAndDecompress(encoded);
+
+        if (sharedSelections) {
+            const hasLocalData = Object.keys(kinkSelections).length > 0;
+
+            if (hasLocalData) {
+                const choice = confirm(
+                    'Vous consultez une kinklist partagée.\n\n' +
+                    'Voulez-vous remplacer votre kinklist actuelle par celle-ci ?\n\n' +
+                    'OK = Remplacer\n' +
+                    'Annuler = Voir sans remplacer'
+                );
+
+                if (choice) {
+                    kinkSelections = sharedSelections;
+                    saveToLocalStorage();
+                    // Clear the hash after importing
+                    window.location.hash = '';
+                    alert('Kinklist importée avec succès !');
+                } else {
+                    // Just display without saving
+                    kinkSelections = sharedSelections;
+                }
+            } else {
+                // No local data, just import
+                const choice = confirm(
+                    'Vous consultez une kinklist partagée.\n\n' +
+                    'Voulez-vous l\'importer dans votre profil ?\n\n' +
+                    'OK = Importer\n' +
+                    'Annuler = Voir uniquement'
+                );
+
+                if (choice) {
+                    kinkSelections = sharedSelections;
+                    saveToLocalStorage();
+                    // Clear the hash after importing
+                    window.location.hash = '';
+                    alert('Kinklist importée avec succès !');
+                } else {
+                    // Just display without saving
+                    kinkSelections = sharedSelections;
+                }
+            }
+        } else {
+            alert('Le lien de partage est invalide ou corrompu.');
+            window.location.hash = '';
+        }
+    }
 }
 
 // Reset kinklist
