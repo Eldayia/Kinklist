@@ -376,7 +376,7 @@ async function exportKinklistAsImage() {
         ctx.fillText('Ma Kinklist', config.width / 2, y + 45);
         ctx.font = '16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
         ctx.globalAlpha = 0.9;
-        ctx.fillText('Exportée le ' + new Date().toLocaleDateString('fr-FR'), config.width / 2, y + 75);
+        ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 75);
         ctx.globalAlpha = 1;
         y += config.headerHeight + 20;
 
@@ -441,13 +441,9 @@ async function exportKinklistAsImage() {
         ctx.fillStyle = '#212121';
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = '14px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.globalAlpha = 0.9;
-        ctx.fillText('Site accessible aux daltoniens - Icônes : rond, carré, triangle, losange, croix et étoile', config.width / 2, y + 30);
-        ctx.globalAlpha = 1;
         ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-        ctx.fillText('Développé par EldaDev', config.width / 2, y + 55);
+        ctx.textAlign = 'center';
+        ctx.fillText('Développé par EldaDev / Twitter : @eldadev_ / @eldayia', config.width / 2, y + config.footerHeight / 2 + 5);
 
         // 6) Générer et télécharger
         const blob = await canvasToBlobAsync(canvas);
