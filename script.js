@@ -255,23 +255,9 @@ function setupEventListeners() {
         applyFilters();
     });
 
-    // Export button (JSON)
-    const exportBtn = document.getElementById('export-btn');
-    exportBtn.addEventListener('click', exportKinklist);
-
     // Export button (Image)
     const exportImageBtn = document.getElementById('export-image-btn');
     exportImageBtn.addEventListener('click', exportKinklistAsImage);
-
-    // Import button
-    const importBtn = document.getElementById('import-btn');
-    importBtn.addEventListener('click', () => {
-        document.getElementById('import-input').click();
-    });
-
-    // Import file input
-    const importInput = document.getElementById('import-input');
-    importInput.addEventListener('change', importKinklist);
 
     // Reset button
     const resetBtn = document.getElementById('reset-btn');
@@ -297,31 +283,6 @@ function populateCategoryFilter() {
         option.textContent = category;
         categoryFilter.appendChild(option);
     });
-}
-
-// Export kinklist
-function exportKinklist() {
-    const exportData = {
-        version: '1.0',
-        date: new Date().toISOString(),
-        selections: kinkSelections
-    };
-
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `kinklist-${new Date().toISOString().split('T')[0]}.json`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-
-    alert('Votre kinklist a été exportée avec succès !');
 }
 
 // Export kinklist as image (robuste avec repli html2canvas)
@@ -614,50 +575,6 @@ function drawStatusIcon(ctx, status, x, y, colors) {
             break;
     }
     ctx.restore();
-}
-
-// Import kinklist
-function importKinklist(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-        try {
-            const importData = JSON.parse(e.target.result);
-
-            if (importData.selections) {
-                const confirmImport = confirm(
-                    'Voulez-vous remplacer votre kinklist actuelle par celle importée ?\n\n' +
-                    'Cliquez sur OK pour remplacer, ou Annuler pour fusionner.'
-                );
-
-                if (confirmImport) {
-                    // Replace
-                    kinkSelections = importData.selections;
-                } else {
-                    // Merge
-                    kinkSelections = { ...kinkSelections, ...importData.selections };
-                }
-
-                saveToLocalStorage();
-                applyFilters();
-
-                alert('Kinklist importée avec succès !');
-            } else {
-                alert('Format de fichier invalide.');
-            }
-        } catch (error) {
-            console.error('Error importing:', error);
-            alert('Erreur lors de l\'importation du fichier.');
-        }
-    };
-
-    reader.readAsText(file);
-
-    // Reset input
-    event.target.value = '';
 }
 
 // Reset kinklist
