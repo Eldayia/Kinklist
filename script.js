@@ -312,27 +312,43 @@ async function exportKinklistAsImage() {
             categoriesWithSelections[category].push({ kink, status });
         });
 
-        // 3) Config et hauteur totale (optimisé pour Discord mobile)
+        // 3) Config et hauteur totale (mise en page large avec catégories en colonnes)
         const config = {
-            width: 800,
+            width: 1400,
             padding: 30,
             headerHeight: 110,
-            legendHeight: 140,
+            legendHeight: 110,
             categoryHeaderHeight: 55,
             itemHeight: 50,
             itemsPerRow: 2,
             itemGap: 12,
+            categoriesPerRow: 2, // Nombre de catégories côte à côte
+            categoryGap: 20,
             sectionGap: 25,
             footerHeight: 70,
             colors: { love: '#d81b60', like: '#1e88e5', curious: '#ffa726', maybe: '#9c27b0', no: '#757575', limit: '#000000' },
             labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit' }
         };
 
+        // Calcul de la hauteur avec catégories en colonnes
+        const categories = Object.entries(categoriesWithSelections);
+        const categoryWidth = (config.width - config.padding * 2 - config.categoryGap * (config.categoriesPerRow - 1)) / config.categoriesPerRow;
+
+        // Organiser les catégories en lignes
+        let rowHeights = [];
+        for (let i = 0; i < categories.length; i += config.categoriesPerRow) {
+            let maxHeightInRow = 0;
+            for (let j = 0; j < config.categoriesPerRow && i + j < categories.length; j++) {
+                const kinks = categories[i + j][1];
+                const rows = Math.ceil(kinks.length / config.itemsPerRow);
+                const categoryHeight = config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap));
+                maxHeightInRow = Math.max(maxHeightInRow, categoryHeight);
+            }
+            rowHeights.push(maxHeightInRow);
+        }
+
         let totalHeight = config.padding * 2 + config.headerHeight + config.legendHeight + config.footerHeight;
-        Object.values(categoriesWithSelections).forEach(kinks => {
-            const rows = Math.ceil(kinks.length / config.itemsPerRow);
-            totalHeight += config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap)) + config.sectionGap;
-        });
+        totalHeight += rowHeights.reduce((sum, height) => sum + height + config.sectionGap, 0);
 
         // 4) Limite de taille des canvases (Chrome/Edge/Firefox ~16k-32k)
         const MAX_CANVAS = 16384; // sécurité multi-navigateurs
@@ -380,7 +396,7 @@ async function exportKinklistAsImage() {
         ctx.globalAlpha = 1;
         y += config.headerHeight + 20;
 
-        // Légende (2 lignes pour meilleure lisibilité)
+        // Légende (1 ligne avec la largeur augmentée)
         ctx.fillStyle = 'white';
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.legendHeight, 12, true, false);
         ctx.fillStyle = '#212121';
@@ -389,13 +405,8 @@ async function exportKinklistAsImage() {
         ctx.fillText('Légende', config.padding + 20, y + 32);
         const legendItems = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
         let legendX = config.padding + 20;
-        let legendY = y + 65;
+        const legendY = y + 85;
         legendItems.forEach((status, index) => {
-            // Passer à la 2ème ligne après 3 items
-            if (index === 3) {
-                legendX = config.padding + 20;
-                legendY = y + 105;
-            }
             ctx.fillStyle = '#f5f5f5';
             ctx.font = '18px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
             const pillWidth = ctx.measureText(config.labels[status]).width + 60;
@@ -408,40 +419,56 @@ async function exportKinklistAsImage() {
         });
         y += config.legendHeight + 20;
 
-        // Catégories + items
-        Object.entries(categoriesWithSelections).forEach(([category, kinks]) => {
-            const rows = Math.ceil(kinks.length / config.itemsPerRow);
-            const categoryHeight = config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap));
-            ctx.fillStyle = 'white';
-            roundRect(ctx, config.padding, y, config.width - config.padding * 2, categoryHeight, 12, true, false);
-            ctx.fillStyle = '#212121';
-            ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(category, config.padding + 20, y + 38);
+        // Catégories + items (en colonnes)
+        let rowIndex = 0;
+        for (let i = 0; i < categories.length; i += config.categoriesPerRow) {
+            const rowHeight = rowHeights[rowIndex];
 
-            const itemWidth = (config.width - config.padding * 2 - 40) / config.itemsPerRow;
-            kinks.forEach((item, index) => {
-                const col = index % config.itemsPerRow;
-                const row = Math.floor(index / config.itemsPerRow);
-                const itemX = config.padding + 20 + col * (itemWidth + config.itemGap);
-                const itemY = y + config.categoryHeaderHeight + row * (config.itemHeight + config.itemGap);
-                ctx.fillStyle = '#f5f5f5';
-                roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 8, true, false);
-                drawStatusIcon(ctx, item.status, itemX + 15, itemY + config.itemHeight / 2, config.colors, 1.2);
+            // Dessiner chaque catégorie de cette ligne
+            for (let j = 0; j < config.categoriesPerRow && i + j < categories.length; j++) {
+                const [category, kinks] = categories[i + j];
+                const categoryX = config.padding + j * (categoryWidth + config.categoryGap);
+
+                const rows = Math.ceil(kinks.length / config.itemsPerRow);
+                const categoryHeight = config.categoryHeaderHeight + (rows * (config.itemHeight + config.itemGap));
+
+                // Fond de la catégorie
+                ctx.fillStyle = 'white';
+                roundRect(ctx, categoryX, y, categoryWidth, categoryHeight, 12, true, false);
+
+                // Titre de la catégorie
                 ctx.fillStyle = '#212121';
-                ctx.font = '17px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
                 ctx.textAlign = 'left';
-                const maxTextWidth = itemWidth - 55;
-                let text = item.kink;
-                if (ctx.measureText(text).width > maxTextWidth) {
-                    while (ctx.measureText(text + '...').width > maxTextWidth && text.length > 0) text = text.slice(0, -1);
-                    text += '...';
-                }
-                ctx.fillText(text, itemX + 42, itemY + config.itemHeight / 2 + 6);
-            });
+                ctx.fillText(category, categoryX + 20, y + 38);
 
-            y += categoryHeight + config.sectionGap;
-        });
+                // Items de la catégorie
+                const itemWidth = (categoryWidth - 40) / config.itemsPerRow;
+                kinks.forEach((item, index) => {
+                    const col = index % config.itemsPerRow;
+                    const row = Math.floor(index / config.itemsPerRow);
+                    const itemX = categoryX + 20 + col * (itemWidth + config.itemGap);
+                    const itemY = y + config.categoryHeaderHeight + row * (config.itemHeight + config.itemGap);
+
+                    ctx.fillStyle = '#f5f5f5';
+                    roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 8, true, false);
+                    drawStatusIcon(ctx, item.status, itemX + 15, itemY + config.itemHeight / 2, config.colors, 1.2);
+                    ctx.fillStyle = '#212121';
+                    ctx.font = '17px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                    ctx.textAlign = 'left';
+                    const maxTextWidth = itemWidth - 55;
+                    let text = item.kink;
+                    if (ctx.measureText(text).width > maxTextWidth) {
+                        while (ctx.measureText(text + '...').width > maxTextWidth && text.length > 0) text = text.slice(0, -1);
+                        text += '...';
+                    }
+                    ctx.fillText(text, itemX + 42, itemY + config.itemHeight / 2 + 6);
+                });
+            }
+
+            y += rowHeight + config.sectionGap;
+            rowIndex++;
+        }
 
         // Pied de page
         ctx.fillStyle = '#212121';
