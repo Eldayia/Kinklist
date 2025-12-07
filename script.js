@@ -612,30 +612,170 @@ function drawStatusIcon(ctx, status, x, y, colors, scale = 1) {
     ctx.restore();
 }
 
-// Compression and encoding functions for sharing
+// Build an index mapping kinkId <-> numeric ID for compression
+function buildKinkIndex() {
+    const index = [];
+    const reverseIndex = {};
+    let id = 0;
+
+    Object.entries(kinksData).forEach(([category, kinks]) => {
+        kinks.forEach(kink => {
+            const kinkId = `${category}::${kink}`;
+            index[id] = kinkId;
+            reverseIndex[kinkId] = id;
+            id++;
+        });
+    });
+
+    return { index, reverseIndex };
+}
+
+// Encode status to a single character
+function encodeStatus(status) {
+    const map = { love: 'l', like: 'k', curious: 'c', maybe: 'm', no: 'n', limit: 'h' };
+    return map[status] || '';
+}
+
+// Decode character to status
+function decodeStatus(char) {
+    const map = { l: 'love', k: 'like', c: 'curious', m: 'maybe', n: 'no', h: 'limit' };
+    return map[char] || '';
+}
+
+// Compression and encoding functions for sharing (optimized format with gzip)
 function compressAndEncode(data) {
-    // Convert to JSON string
-    const jsonStr = JSON.stringify(data);
-    // Convert to base64 with URL-safe characters
-    const encoded = btoa(encodeURIComponent(jsonStr).replace(/%([0-9A-F]{2})/g, (match, p1) => {
-        return String.fromCharCode(parseInt(p1, 16));
-    }));
-    // Make it URL-safe
+    const { reverseIndex } = buildKinkIndex();
+
+    // Convert to compact format: [[id, statusChar], ...]
+    const compact = Object.entries(data).map(([kinkId, status]) => {
+        const id = reverseIndex[kinkId];
+        if (id === undefined) return null; // Kink not found
+        return [id, encodeStatus(status)];
+    }).filter(x => x !== null);
+
+    // Check if all statuses are the same for ultra-compact format
+    const statuses = compact.map(x => x[1]);
+    const allSameStatus = statuses.length > 0 && statuses.every(s => s === statuses[0]);
+
+    let str;
+    if (allSameStatus && compact.length > 5) {
+        // Ultra-compact: "s:id,id,id,..." where s is the common status
+        const ids = compact.map(([id]) => id.toString(36)).join(',');
+        str = `${statuses[0]}:${ids}`;
+    } else {
+        // Regular compact: "ids,ids,..." where each entry is id+status in base36
+        str = compact.map(([id, s]) => `${id.toString(36)}${s}`).join(',');
+    }
+
+    // Compress with gzip if pako is available
+    if (typeof pako !== 'undefined') {
+        try {
+            // Compress the string
+            const compressed = pako.deflate(str);
+            // Convert Uint8Array to binary string
+            const binaryStr = String.fromCharCode.apply(null, compressed);
+            // Encode to base64
+            const encoded = btoa(binaryStr);
+            // Make it URL-safe and add version prefix
+            return 'v2_' + encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        } catch (e) {
+            console.warn('Compression failed, using uncompressed format:', e);
+        }
+    }
+
+    // Fallback: no compression
+    const encoded = btoa(str);
     return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 function decodeAndDecompress(encoded) {
     try {
-        // Restore base64 padding and standard characters
-        let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-        while (base64.length % 4) {
-            base64 += '=';
+        const { index } = buildKinkIndex();
+        let str;
+
+        // Check if it's v2 format (gzip compressed)
+        if (encoded.startsWith('v2_')) {
+            const encodedData = encoded.substring(3);
+
+            if (typeof pako !== 'undefined') {
+                try {
+                    // Restore base64 padding and standard characters
+                    let base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+                    while (base64.length % 4) {
+                        base64 += '=';
+                    }
+
+                    // Decode from base64 to binary string
+                    const binaryStr = atob(base64);
+
+                    // Convert binary string to Uint8Array
+                    const compressed = new Uint8Array(binaryStr.length);
+                    for (let i = 0; i < binaryStr.length; i++) {
+                        compressed[i] = binaryStr.charCodeAt(i);
+                    }
+
+                    // Decompress
+                    const decompressed = pako.inflate(compressed, { to: 'string' });
+                    str = decompressed;
+                } catch (e) {
+                    console.error('Decompression failed:', e);
+                    return null;
+                }
+            } else {
+                console.error('pako library not loaded');
+                return null;
+            }
+        } else {
+            // Legacy format (uncompressed)
+            let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            str = atob(base64);
         }
-        // Decode from base64
-        const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(base64), (c) => {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonStr);
+
+        // Parse compact format
+        const result = {};
+
+        // Check if it's ultra-compact format (s:id,id,id,...)
+        if (str.includes(':') && str.indexOf(':') < 5) {
+            const [statusChar, idsStr] = str.split(':');
+            const status = decodeStatus(statusChar);
+
+            if (status) {
+                idsStr.split(',').forEach(idStr => {
+                    if (!idStr) return;
+                    const id = parseInt(idStr, 36);
+                    if (isNaN(id)) return;
+
+                    const kinkId = index[id];
+                    if (kinkId) {
+                        result[kinkId] = status;
+                    }
+                });
+            }
+        } else {
+            // Regular compact format
+            str.split(',').forEach(pair => {
+                if (!pair) return;
+
+                // Extract status character (last char)
+                const statusChar = pair.slice(-1);
+                const idStr = pair.slice(0, -1);
+
+                const id = parseInt(idStr, 36);
+                if (isNaN(id)) return;
+
+                const kinkId = index[id];
+                const status = decodeStatus(statusChar);
+
+                if (kinkId && status) {
+                    result[kinkId] = status;
+                }
+            });
+        }
+
+        return result;
     } catch (e) {
         console.error('Error decoding shared data:', e);
         return null;
