@@ -667,25 +667,23 @@ function compressAndEncode(data) {
         str = compact.map(([id, s]) => `${id.toString(36)}${s}`).join(',');
     }
 
-    // Compress with gzip if pako is available
-    if (typeof pako !== 'undefined') {
-        try {
-            // Compress the string
-            const compressed = pako.deflate(str);
-            // Convert Uint8Array to binary string
-            const binaryStr = String.fromCharCode.apply(null, compressed);
-            // Encode to base64
-            const encoded = btoa(binaryStr);
-            // Make it URL-safe and add version prefix
-            return 'v2_' + encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        } catch (e) {
-            console.warn('Compression failed, using uncompressed format:', e);
-        }
+    // Compress with gzip (pako required)
+    if (typeof pako === 'undefined') {
+        throw new Error('La bibliothèque de compression (pako) n\'est pas chargée. Impossible de générer le lien de partage.');
     }
 
-    // Fallback: no compression
-    const encoded = btoa(str);
-    return encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    try {
+        // Compress the string
+        const compressed = pako.deflate(str);
+        // Convert Uint8Array to binary string
+        const binaryStr = String.fromCharCode.apply(null, compressed);
+        // Encode to base64
+        const encoded = btoa(binaryStr);
+        // Make it URL-safe and add version prefix
+        return 'v2_' + encoded.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (e) {
+        throw new Error('Échec de la compression des données : ' + e.message);
+    }
 }
 
 function decodeAndDecompress(encoded) {
@@ -789,17 +787,22 @@ function generateShareLink() {
         return;
     }
 
-    const encoded = compressAndEncode(kinkSelections);
-    const url = new URL(window.location.href);
-    url.hash = `share=${encoded}`;
+    try {
+        const encoded = compressAndEncode(kinkSelections);
+        const url = new URL(window.location.href);
+        url.hash = `share=${encoded}`;
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(url.toString()).then(() => {
-        alert('Lien de partage copié dans le presse-papier !\n\nPartagez ce lien pour que d\'autres puissent voir votre kinklist.');
-    }).catch(() => {
-        // Fallback: show the link in a prompt
-        prompt('Copiez ce lien pour partager votre kinklist :', url.toString());
-    });
+        // Copy to clipboard
+        navigator.clipboard.writeText(url.toString()).then(() => {
+            alert('Lien de partage copié dans le presse-papier !\n\nPartagez ce lien pour que d\'autres puissent voir votre kinklist.');
+        }).catch(() => {
+            // Fallback: show the link in a prompt
+            prompt('Copiez ce lien pour partager votre kinklist :', url.toString());
+        });
+    } catch (error) {
+        console.error('Erreur lors de la génération du lien:', error);
+        alert('Erreur : ' + error.message);
+    }
 }
 
 // Load shared data from URL
