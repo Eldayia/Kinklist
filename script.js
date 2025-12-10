@@ -319,20 +319,20 @@ async function exportKinklistAsImage() {
         });
 
         // 3) Config et hauteur totale (mise en page large avec catégories en colonnes)
-        // Configuration optimisée pour Discord (texte plus grand, meilleure lisibilité)
+        // Configuration optimisée pour Discord (3-4 colonnes = image moins haute)
         const config = {
-            width: 1200,
-            padding: 40,
-            headerHeight: 120,
-            legendHeight: 130,
-            categoryHeaderHeight: 70,
-            itemHeight: 60,
-            itemsPerRow: 2,
-            itemGap: 15,
-            categoriesPerRow: 2,
-            categoryGap: 25,
-            sectionGap: 30,
-            footerHeight: 80,
+            width: 1800,
+            padding: 35,
+            headerHeight: 110,
+            legendHeight: 120,
+            categoryHeaderHeight: 65,
+            itemHeight: 58,
+            itemsPerRow: 1, // 1 item par ligne dans chaque catégorie
+            itemGap: 12,
+            categoriesPerRow: 4, // 4 colonnes de catégories
+            categoryGap: 20,
+            sectionGap: 25,
+            footerHeight: 75,
             colors: { love: '#d81b60', like: '#1e88e5', curious: '#ffa726', maybe: '#9c27b0', no: '#757575', limit: '#000000' },
             labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit' }
         };
@@ -394,12 +394,12 @@ async function exportKinklistAsImage() {
         ctx.fillStyle = headerGradient;
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.headerHeight, 12, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 50px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Ma Kinklist', config.width / 2, y + 55);
-        ctx.font = '24px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.fillText('Ma Kinklist', config.width / 2, y + 52);
+        ctx.font = '22px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
         ctx.globalAlpha = 0.9;
-        ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 95);
+        ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 88);
         ctx.globalAlpha = 1;
         y += config.headerHeight + 20;
 
