@@ -319,15 +319,15 @@ async function exportKinklistAsImage() {
         });
 
         // 3) Config et hauteur totale (mise en page large avec catégories en colonnes)
-        // Configuration optimisée pour Discord (3-4 colonnes = image moins haute)
+        // Configuration optimisée pour Discord (8 colonnes = 4 catégories × 2 items = image très compacte)
         const config = {
-            width: 1800,
+            width: 2400,
             padding: 35,
             headerHeight: 110,
             legendHeight: 120,
             categoryHeaderHeight: 65,
             itemHeight: 58,
-            itemsPerRow: 1, // 1 item par ligne dans chaque catégorie
+            itemsPerRow: 2, // 2 items par ligne dans chaque catégorie
             itemGap: 12,
             categoriesPerRow: 4, // 4 colonnes de catégories
             categoryGap: 20,
