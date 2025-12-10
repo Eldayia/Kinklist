@@ -10,57 +10,94 @@ Ce fichier fournit un contexte spécifique pour Claude Code lors du travail sur 
 
 ### Stack technologique
 - **Frontend** : Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Stockage** : LocalStorage pour la persistance locale
-- **Compression** : Pako (gzip) pour les liens de partage
+- **Backend** : Node.js 18+ avec Express
+- **Stockage local** : LocalStorage pour la persistance navigateur
+- **Stockage serveur** : Fichier JSON pour les liens partagés
+- **Compression** : Pako (gzip) pour compatibilité liens legacy
 - **Export image** : Canvas API avec fallback html2canvas
-- **Serveur** : Nginx (Alpine) via Docker
+- **Génération d'ID** : nanoid (6 caractères alphanumériques)
 
 ### Fichiers principaux
 
 ```
 Kinklist/
-├── index.html          # Structure HTML sémantique avec ARIA
-├── style.css           # Styles avec système d'icônes accessibles
-├── script.js           # Logique applicative complète
-├── kinks-data.js       # Base de données de 350+ kinks
-├── favicon.svg         # Favicon avec dégradé thématique
-├── Dockerfile          # Configuration Docker
-├── docker-compose.yml  # Orchestration
-├── nginx.conf          # Config Nginx optimisée
-└── README.md           # Documentation utilisateur
+├── Frontend
+│   ├── index.html          # Structure HTML sémantique avec ARIA
+│   ├── style.css           # Styles avec système d'icônes accessibles
+│   ├── script.js           # Logique applicative complète
+│   ├── kinks-data.js       # Base de données de 350+ kinks
+│   └── favicon.svg         # Favicon avec dégradé thématique
+├── Backend
+│   ├── server.js           # Serveur Express avec API REST
+│   ├── package.json        # Dépendances Node.js
+│   └── data/               # Stockage des liens partagés (JSON)
+├── Docker
+│   ├── Dockerfile          # Configuration Docker (Node.js)
+│   ├── docker-compose.yml  # Orchestration avec volume
+│   └── .dockerignore       # Fichiers exclus du build
+└── Documentation
+    ├── README.md           # Documentation utilisateur
+    ├── Claude.md           # Documentation pour Claude Code
+    └── WARP.md             # Directives pour WARP terminal
 ```
 
-## Système de partage innovant
+## Système de partage avec backend
 
-### Format de lien compressé (v2)
+### Liens ultra-courts avec API
 
-Le système de partage utilise une compression optimisée pour générer des **liens ultra-courts** :
+Le système de partage utilise un **backend Node.js** pour générer des liens **garantis < 80 caractères** :
 
-**Format** : `#share=v2_[base64-compressed-data]`
+**Format court** : `#s/abc123` (~40 caractères total)
+**Format legacy** : `#share=v2_...` (supporté en lecture seule pour rétrocompatibilité)
 
-**Processus de compression** :
-1. Indexation des kinks (numeric ID au lieu de strings)
-2. Encodage des statuts en caractères uniques (l/k/c/m/n/h)
-3. Format ultra-compact si tous les statuts sont identiques
-4. Compression gzip avec pako
-5. Encodage base64 URL-safe
+### Architecture backend
 
-**Exemple** : Un lien partagé peut contenir 50+ sélections en ~100 caractères.
+**Serveur** : `server.js` - Express avec routes API
 
-### Code clé
+**Endpoints** :
+- `POST /api/share` : Créer un lien court
+  - Body : `{ data: { "Cat::Kink": "status", ... } }`
+  - Response : `{ id: "abc123", url: "https://.../#s/abc123" }`
+- `GET /api/share/:id` : Récupérer les données
+  - Response : `{ data: { ... } }`
+- `GET /api/health` : Health check
+- `GET /api/stats` : Statistiques (nombre de liens, accès)
+
+**Génération d'ID** :
+- Bibliothèque : `nanoid` avec alphabet alphanumeric
+- Longueur : 6 caractères
+- Espace de collision : 62^6 = ~56 milliards de combinaisons
+
+**Stockage** :
+- Fichier : `data/shares.json`
+- Structure :
+```json
+{
+  "abc123": {
+    "data": { "Cat::Kink": "status", ... },
+    "createdAt": "2025-01-10T12:00:00.000Z",
+    "accessCount": 5,
+    "lastAccessedAt": "2025-01-11T15:30:00.000Z"
+  }
+}
+```
+
+### Code frontend clé
 
 ```javascript
-// Compression (script.js:646-687)
-function compressAndEncode(data) {
-    // Convertit les sélections en format compact indexé
-    // Utilise pako.deflate() pour compression gzip
-    // Génère un lien court avec préfixe v2_
+// Génération (script.js:803-836)
+async function generateShareLink() {
+    // POST vers /api/share
+    // Récupère l'URL courte
+    // Copie dans le presse-papier
 }
 
-// Décompression (script.js:691-783)
-function decodeAndDecompress(encoded) {
-    // Supporte format v2 (compressé) et legacy (rétrocompatibilité)
-    // Utilise pako.inflate() pour décompression
+// Chargement (script.js:839-920)
+async function loadSharedData() {
+    // Détecte format : #s/abc123 ou #share=v2_...
+    // GET vers /api/share/:id pour format court
+    // decodeAndDecompress() pour format legacy
+    // handleSharedData() pour import
 }
 ```
 
@@ -238,17 +275,17 @@ git commit -m "Message du commit
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ```
 
-## Dépendances externes
+## Dépendances
 
-### Pako (compression)
-- **CDN** : `https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js`
-- **Usage** : Compression gzip pour liens de partage
-- **Essentiel** : Oui, pour le système de partage v2
+### Backend (Node.js)
+- **express** : Framework web minimaliste
+- **cors** : Gestion des requêtes cross-origin
+- **nanoid** : Génération d'ID courts sécurisés
 
-### html2canvas (optionnel)
-- **Chargement** : Dynamique si nécessaire
-- **Usage** : Fallback pour export image si canvas trop grand
-- **Essentiel** : Non, fallback uniquement
+### Frontend (CDN)
+- **Pako** : Compression gzip pour compatibilité liens legacy
+  - CDN : `https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js`
+- **html2canvas** : Fallback export image (chargement dynamique si nécessaire)
 
 ## Contact et crédits
 

@@ -799,82 +799,122 @@ function shareSiteLink() {
     });
 }
 
-// Generate share link
-function generateShareLink() {
+// Generate share link (avec API backend)
+async function generateShareLink() {
     if (Object.keys(kinkSelections).length === 0) {
         alert('Vous n\'avez aucune sélection à partager. Sélectionnez des kinks avant de partager.');
         return;
     }
 
     try {
-        const encoded = compressAndEncode(kinkSelections);
-        const url = new URL(window.location.href);
-        url.hash = `share=${encoded}`;
+        // Appel à l'API backend pour créer un lien court
+        const response = await fetch('/api/share', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ data: kinkSelections })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erreur API: ${response.status}`);
+        }
+
+        const { url } = await response.json();
 
         // Copy to clipboard
-        navigator.clipboard.writeText(url.toString()).then(() => {
-            alert('Lien de partage copié dans le presse-papier !\n\nPartagez ce lien pour que d\'autres puissent voir votre kinklist.');
+        navigator.clipboard.writeText(url).then(() => {
+            alert(`Lien de partage copié dans le presse-papier !\n\n${url}\n\nPartagez ce lien pour que d'autres puissent voir votre kinklist.`);
         }).catch(() => {
             // Fallback: show the link in a prompt
-            prompt('Copiez ce lien pour partager votre kinklist :', url.toString());
+            prompt('Copiez ce lien pour partager votre kinklist :', url);
         });
     } catch (error) {
         console.error('Erreur lors de la génération du lien:', error);
-        alert('Erreur : ' + error.message);
+        alert('Erreur : ' + error.message + '\n\nVérifiez que le serveur est accessible.');
     }
 }
 
 // Load shared data from URL
-function loadSharedData() {
+async function loadSharedData() {
     const hash = window.location.hash;
-    if (hash && hash.startsWith('#share=')) {
+
+    // Format court : #s/abc123
+    if (hash && hash.startsWith('#s/')) {
+        const id = hash.substring(3); // Remove '#s/'
+
+        if (id.length === 6) {
+            try {
+                const response = await fetch(`/api/share/${id}`);
+
+                if (!response.ok) {
+                    throw new Error(`Lien non trouvé (${response.status})`);
+                }
+
+                const { data: sharedSelections } = await response.json();
+                await handleSharedData(sharedSelections);
+            } catch (error) {
+                console.error('Erreur chargement lien court:', error);
+                alert('Erreur : Le lien de partage est invalide ou a expiré.');
+                window.location.hash = '';
+            }
+        } else {
+            alert('Format de lien invalide.');
+            window.location.hash = '';
+        }
+    }
+    // Format legacy : #share=v2_...
+    else if (hash && hash.startsWith('#share=')) {
         const encoded = hash.substring(7); // Remove '#share='
         const sharedSelections = decodeAndDecompress(encoded);
 
         if (sharedSelections) {
-            const hasLocalData = Object.keys(kinkSelections).length > 0;
-
-            if (hasLocalData) {
-                const choice = confirm(
-                    'Vous consultez une kinklist partagée.\n\n' +
-                    'Voulez-vous remplacer votre kinklist actuelle par celle-ci ?\n\n' +
-                    'OK = Remplacer\n' +
-                    'Annuler = Voir sans remplacer'
-                );
-
-                if (choice) {
-                    kinkSelections = sharedSelections;
-                    saveToLocalStorage();
-                    // Clear the hash after importing
-                    window.location.hash = '';
-                    alert('Kinklist importée avec succès !');
-                } else {
-                    // Just display without saving
-                    kinkSelections = sharedSelections;
-                }
-            } else {
-                // No local data, just import
-                const choice = confirm(
-                    'Vous consultez une kinklist partagée.\n\n' +
-                    'Voulez-vous l\'importer dans votre profil ?\n\n' +
-                    'OK = Importer\n' +
-                    'Annuler = Voir uniquement'
-                );
-
-                if (choice) {
-                    kinkSelections = sharedSelections;
-                    saveToLocalStorage();
-                    // Clear the hash after importing
-                    window.location.hash = '';
-                    alert('Kinklist importée avec succès !');
-                } else {
-                    // Just display without saving
-                    kinkSelections = sharedSelections;
-                }
-            }
+            await handleSharedData(sharedSelections);
         } else {
             alert('Le lien de partage est invalide ou corrompu.');
             window.location.hash = '';
+        }
+    }
+}
+
+// Helper function to handle shared data import
+async function handleSharedData(sharedSelections) {
+    const hasLocalData = Object.keys(kinkSelections).length > 0;
+
+    if (hasLocalData) {
+        const choice = confirm(
+            'Vous consultez une kinklist partagée.\n\n' +
+            'Voulez-vous remplacer votre kinklist actuelle par celle-ci ?\n\n' +
+            'OK = Remplacer\n' +
+            'Annuler = Voir sans remplacer'
+        );
+
+        if (choice) {
+            kinkSelections = sharedSelections;
+            saveToLocalStorage();
+            window.location.hash = '';
+            alert('Kinklist importée avec succès !');
+        } else {
+            // Just display without saving
+            kinkSelections = sharedSelections;
+        }
+    } else {
+        // No local data, just import
+        const choice = confirm(
+            'Vous consultez une kinklist partagée.\n\n' +
+            'Voulez-vous l\'importer dans votre profil ?\n\n' +
+            'OK = Importer\n' +
+            'Annuler = Voir uniquement'
+        );
+
+        if (choice) {
+            kinkSelections = sharedSelections;
+            saveToLocalStorage();
+            window.location.hash = '';
+            alert('Kinklist importée avec succès !');
+        } else {
+            // Just display without saving
+            kinkSelections = sharedSelections;
         }
     }
 }

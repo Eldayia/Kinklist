@@ -7,16 +7,23 @@ services:
       dockerfile: Dockerfile
     container_name: kinklist-app
     ports:
-      - "${PORT:-8080}:80"
+      - "${PORT:-8080}:3000"
     restart: unless-stopped
     environment:
-      - NGINX_HOST=${NGINX_HOST:-localhost}
+      - PORT=3000
+      - NODE_ENV=${NODE_ENV:-production}
+    volumes:
+      - kinklist-data:/app/data
     labels:
-      - "com.kinklist.description=Application Kinklist accessible et moderne"
-      - "com.kinklist.version=1.0"
+      - "com.kinklist.description=Application Kinklist avec API de liens courts"
+      - "com.kinklist.version=2.0"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+
+volumes:
+  kinklist-data:
+    driver: local

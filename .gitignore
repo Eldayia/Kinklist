@@ -1,3 +1,10 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Data storage
+data/
+
 # Environment variables
 .env
 

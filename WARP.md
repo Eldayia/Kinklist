@@ -4,27 +4,45 @@ Ce fichier fournit des directives à WARP (warp.dev) lors du travail avec le cod
 
 ## Vue d'ensemble du projet
 
-**Kinklist** est une application web statique permettant de créer et partager une liste de préférences intimes (kinklist). Le projet met un accent particulier sur **l'accessibilité** (daltoniens, navigation clavier, lecteurs d'écran) et la **confidentialité** (100% local, aucun serveur).
+**Kinklist** est une application web permettant de créer et partager une liste de préférences intimes (kinklist). Le projet met un accent particulier sur **l'accessibilité** (daltoniens, navigation clavier, lecteurs d'écran) et la **confidentialité**.
 
 ### Stack technologique
 - **Frontend** : Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Stockage** : LocalStorage pour la persistance locale
-- **Compression** : Pako (gzip) pour les liens de partage
+- **Backend** : Node.js 18+ avec Express, API REST
+- **Stockage local** : LocalStorage pour la persistance navigateur
+- **Stockage serveur** : Fichier JSON pour les liens partagés
+- **Compression** : Pako (gzip) pour compatibilité liens legacy
 - **Export image** : Canvas API avec fallback html2canvas
-- **Serveur** : Nginx (Alpine) via Docker
+- **Génération ID** : nanoid (6 caractères alphanumériques)
 
 ## Commandes courantes
 
 ### Développement local
+
+#### Avec backend Node.js (recommandé)
 ```bash
-# Ouvrir le site localement (sans serveur)
-# Ouvrir simplement index.html dans un navigateur
+# Installer les dépendances
+npm install
 
-# Ou utiliser un serveur HTTP local Python
-python -m http.server 8000
+# Démarrer le serveur (production)
+npm start
 
-# Ou avec Node.js (si http-server est installé)
-npx http-server -p 8080
+# Démarrer avec auto-reload (développement)
+npm run dev
+
+# Le serveur démarre sur http://localhost:3000
+# API disponible sur http://localhost:3000/api
+```
+
+#### Sans backend (frontend uniquement - limitations)
+```bash
+# Note : Le partage par lien court ne fonctionnera pas sans le backend
+# Seul le format legacy (#share=v2_...) sera supporté en lecture
+
+# Ouvrir index.html directement dans un navigateur
+open index.html  # macOS
+start index.html # Windows
+xdg-open index.html # Linux
 ```
 
 ### Docker
@@ -57,24 +75,33 @@ docker-compose ps
 ## Architecture du projet
 
 ### Structure globale
-Il s'agit d'une **application web statique** (Vanilla JavaScript, pas de framework) avec un focus sur l'**accessibilité** (daltoniens, navigation clavier, lecteurs d'écran).
+Il s'agit d'une **application web full-stack** avec frontend Vanilla JavaScript et backend Node.js, avec un focus sur l'**accessibilité** (daltoniens, navigation clavier, lecteurs d'écran) et la **génération de liens ultra-courts**.
 
 ### Fichiers principaux
 
 ```
 Kinklist/
-├── index.html          # Structure HTML sémantique avec attributs ARIA
-├── style.css           # Styles avec formes distinctes pour accessibilité daltonienne
-├── script.js           # Logique de l'application (état, rendu, filtres, import/export)
-├── kinks-data.js       # Base de données des 350+ kinks organisés en 18 catégories
-├── favicon.svg         # Favicon avec dégradé thématique (cœur + accents chaînes)
-├── Dockerfile          # Configuration Docker
-├── docker-compose.yml  # Orchestration Docker
-├── nginx.conf          # Configuration Nginx optimisée
-├── .env.example        # Exemple de variables d'environnement
-├── README.md           # Documentation utilisateur
-├── Claude.md           # Documentation pour Claude Code
-└── WARP.md             # Ce fichier - directives pour WARP
+├── Frontend
+│   ├── index.html          # Structure HTML sémantique avec ARIA
+│   ├── style.css           # Styles avec formes distinctes pour accessibilité daltonienne
+│   ├── script.js           # Logique frontend (état, rendu, filtres, API calls)
+│   ├── kinks-data.js       # Base de données des 350+ kinks (18 catégories)
+│   └── favicon.svg         # Favicon avec dégradé thématique
+├── Backend
+│   ├── server.js           # Serveur Express avec API REST
+│   ├── package.json        # Dépendances Node.js
+│   └── data/               # Stockage des liens partagés (shares.json)
+├── Docker
+│   ├── Dockerfile          # Configuration Docker (Node.js Alpine)
+│   ├── docker-compose.yml  # Orchestration avec volume
+│   └── .dockerignore       # Fichiers exclus du build
+├── Documentation
+│   ├── README.md           # Documentation utilisateur
+│   ├── Claude.md           # Documentation pour Claude Code
+│   └── WARP.md             # Ce fichier - directives pour WARP
+└── Configuration
+    ├── .env.example        # Variables d'environnement
+    └── .gitignore          # Fichiers exclus de Git
 ```
 
 ### Système de gestion d'état
@@ -116,24 +143,23 @@ Le projet **priorise fortement l'accessibilité** pour les personnes daltonienne
 - Contraste minimum AA
 - Focus visible sur tous les éléments interactifs
 
-### Système de partage innovant
+### Système de partage avec backend
 
-Le système de partage utilise une **compression optimisée** pour générer des liens ultra-courts :
+Le système de partage utilise un **backend Node.js** pour générer des liens **< 80 caractères garantis** :
 
-**Format v2** : `#share=v2_[base64-compressed-data]`
+**Format court** : `#s/abc123` (~40 caractères total)
+**Format legacy** : `#share=v2_...` (supporté en lecture seule)
 
-**Processus de compression** :
-1. Indexation des kinks (numeric ID au lieu de strings)
-2. Encodage des statuts en caractères uniques (l/k/c/m/n/h)
-3. Format ultra-compact si tous les statuts sont identiques
-4. Compression gzip avec pako
-5. Encodage base64 URL-safe
+**Architecture** :
+1. POST `/api/share` avec les sélections
+2. Génération d'un ID unique (6 caractères via nanoid)
+3. Stockage dans `data/shares.json` avec métadonnées
+4. Retour de l'URL courte
 
-**Résultat** : Un lien contenant 50+ sélections en ~100-150 caractères
-
-**Fonctions clés** :
-- `compressAndEncode(data)` : Compression (script.js:646-687)
-- `decodeAndDecompress(encoded)` : Décompression avec support legacy (script.js:691-783)
+**Fonctions clés frontend** :
+- `generateShareLink()` : Appel API POST (script.js:803-836)
+- `loadSharedData()` : Détection format + API GET (script.js:839-920)
+- `handleSharedData()` : Import des sélections (script.js:881-920)
 
 ### Export/Import
 
@@ -203,21 +229,23 @@ Si vous ajoutez des catégories ou kinks :
 ### Variables d'environnement
 Fichier `.env` (créer à partir de `.env.example`) :
 ```
-PORT=8080              # Port d'écoute sur l'hôte
-NGINX_HOST=localhost   # Nom d'hôte nginx
+PORT=8080                  # Port d'écoute sur l'hôte
+NODE_ENV=production        # Environnement Node.js
 ```
 
 ### Architecture
-- Image : `nginx:alpine` (légère)
-- Health check : vérification automatique toutes les 30s
-- Restart policy : `unless-stopped`
+- **Image** : `node:18-alpine` (légère)
+- **Serveur** : Node.js + Express (API + fichiers statiques)
+- **Port interne** : 3000 (mappé sur PORT)
+- **Volume** : `kinklist-data:/app/data` pour persistance
+- **Health check** : Vérification API `/api/health` toutes les 30s
+- **Restart policy** : `unless-stopped`
 
-### Modification de nginx.conf
-Le fichier contient :
-- Headers de sécurité (X-Frame-Options, CSP, etc.)
-- Compression gzip pour performance
-- Cache des assets statiques
-- Configuration optimisée pour SPA
+### Endpoints API backend
+- `POST /api/share` : Créer un lien court
+- `GET /api/share/:id` : Récupérer les données
+- `GET /api/health` : Health check
+- `GET /api/stats` : Statistiques
 
 ## Modifications récentes importantes
 
@@ -242,6 +270,15 @@ Le fichier contient :
 - Format large optimisé pour Discord mobile
 - Header et footer personnalisés avec crédits
 
+### 5. Backend API pour liens ultra-courts (Commit actuel)
+- **Backend Node.js** : API REST avec Express
+- **Liens < 80 caractères** : Format `#s/abc123` garanti court
+- **Génération ID** : nanoid (6 caractères alphanumériques)
+- **Stockage serveur** : Fichier JSON avec métadonnées (date, compteur d'accès)
+- **Endpoints** : POST `/api/share` et GET `/api/share/:id`
+- **Docker** : Migration de nginx vers Node.js avec volume pour persistance
+- **Compatibilité** : Format legacy supporté en lecture seule
+
 ## Points d'attention pour modifications
 
 ### ⚠️ Ne JAMAIS modifier sans réflexion
@@ -261,17 +298,17 @@ Le fichier contient :
 5. **Traductions** : Ajouter support multilingue (actuellement français uniquement)
 6. **Performance** : Optimiser le rendu pour grandes listes de sélections
 
-## Dépendances externes
+## Dépendances
 
-### Pako (compression) - ESSENTIEL
-- **CDN** : `https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js`
-- **Usage** : Compression gzip pour liens de partage v2
-- **Critique** : Oui, système de partage ne fonctionne pas sans
+### Backend (Node.js) - package.json
+- **express** : Framework web minimaliste pour l'API REST
+- **cors** : Gestion des requêtes cross-origin
+- **nanoid** : Génération d'ID courts sécurisés (6 caractères)
 
-### html2canvas - OPTIONNEL
-- **Chargement** : Dynamique si nécessaire
-- **Usage** : Fallback pour export image si canvas trop grand (>16384px)
-- **Critique** : Non, fallback uniquement
+### Frontend (CDN)
+- **Pako** : Compression gzip pour compatibilité liens legacy
+  - CDN : `https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js`
+- **html2canvas** : Fallback export image (chargement dynamique si nécessaire)
 
 ## Contact et crédits
 

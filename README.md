@@ -112,19 +112,20 @@ NGINX_HOST=localhost
 #### Architecture Docker
 
 Le projet utilise :
-- **Image de base** : `nginx:alpine` (légère et optimisée)
-- **Serveur web** : Nginx pour servir les fichiers statiques
-- **Port exposé** : 80 (mappé sur le port configuré)
-- **Health check** : Vérifie automatiquement que l'application fonctionne
+- **Image de base** : `node:18-alpine` (légère et performante)
+- **Serveur** : Node.js + Express servant à la fois l'API et les fichiers statiques
+- **Port exposé** : 3000 (mappé sur le port configuré, par défaut 8080)
+- **Volume** : Persistance des liens partagés dans `/app/data`
+- **Health check** : Vérifie automatiquement que l'API fonctionne (`/api/health`)
 - **Restart policy** : Redémarre automatiquement en cas d'erreur
 
-#### Configuration avancée
+#### API Endpoints
 
-Pour modifier la configuration nginx, éditez le fichier `nginx.conf`. La configuration inclut :
-- Headers de sécurité (X-Frame-Options, X-Content-Type-Options, etc.)
-- Compression gzip pour optimiser les performances
-- Cache des assets statiques
-- Configuration optimisée pour les applications SPA
+Le backend expose les endpoints suivants :
+- **POST `/api/share`** : Créer un lien court (body: `{data: {...}}`)
+- **GET `/api/share/:id`** : Récupérer les données d'un lien court
+- **GET `/api/health`** : Health check du serveur
+- **GET `/api/stats`** : Statistiques globales (optionnel)
 
 ### Sélectionner vos préférences
 1. Parcourez les catégories
@@ -191,19 +192,27 @@ Kinklist/
 
 ## 🛠️ Technologies
 
+### Frontend
 - HTML5 sémantique
 - CSS3 (Grid, Flexbox, Custom Properties)
 - JavaScript Vanilla (ES6+)
-- LocalStorage pour la persistance
-- **Pako** (gzip) pour la compression des liens de partage
+- LocalStorage pour la persistance locale
 - Canvas API pour l'export en image (avec fallback html2canvas)
+- **Pako** (gzip) pour compatibilité liens legacy
+
+### Backend
+- **Node.js 18+** avec Express
+- **nanoid** pour génération d'ID courts
+- Stockage JSON (évolutif vers BDD si nécessaire)
+- API REST avec CORS
 
 ## 🔒 Confidentialité
 
-- **100% local** : Toutes les données restent dans votre navigateur
-- **Aucun serveur** : Pas de transmission de données
+- **Données locales** : Vos sélections restent dans votre navigateur (localStorage)
+- **Partage optionnel** : Les liens de partage stockent les données côté serveur uniquement si vous partagez
 - **Aucun tracking** : Pas de cookies ou d'analytics
-- **Vos données vous appartiennent** : Export/import en JSON
+- **Pas de compte** : Aucune authentification requise
+- **Données anonymes** : Aucune information personnelle n'est collectée
 
 ## 🌈 Catégories disponibles
 
@@ -236,24 +245,31 @@ Kinklist/
 
 ## 🔗 Système de partage par lien
 
-### Format de lien optimisé (v2)
+### Liens ultra-courts avec backend API
 
-Les liens de partage utilisent une compression avancée pour générer des URLs ultra-courtes :
+Les liens de partage utilisent un **backend Node.js** pour générer des URLs ultra-courtes :
 
-**Format** : `https://kinklist.eldadev.fr/#share=v2_[données-compressées]`
+**Format** : `https://kinklist.eldadev.fr/#s/abc123` (~40 caractères !)
 
 **Processus** :
-1. Indexation numérique des kinks (au lieu de chaînes complètes)
-2. Encodage compact des statuts (`l`=love, `k`=like, `c`=curious, `m`=maybe, `n`=no, `h`=limit)
-3. Compression gzip avec pako
-4. Encodage base64 URL-safe
+1. Le frontend envoie les sélections au backend via API REST
+2. Le backend génère un ID unique de 6 caractères alphanumériques
+3. Les données sont stockées côté serveur (fichier JSON)
+4. Le lien court est généré et copié dans le presse-papier
 
-**Résultat** : Un lien contenant 50+ sélections en ~100-150 caractères ! 🎉
+**Résultat** : Un lien de **moins de 80 caractères** garanti, quelle que soit la taille de votre liste ! 🎉
+
+### Architecture technique
+
+- **Backend** : Node.js + Express
+- **Génération d'ID** : nanoid (6 caractères)
+- **Stockage** : Fichier JSON avec métadonnées (date, compteur d'accès)
+- **API** : `/api/share` (POST) et `/api/share/:id` (GET)
 
 ### Compatibilité
 
-- **Format v2** : Utilisé par défaut (compression maximale)
-- **Format legacy** : Supporté en lecture pour rétrocompatibilité
+- **Format court** : `#s/abc123` (nouveau système avec backend)
+- **Format legacy** : `#share=v2_...` (ancien système compressé, toujours supporté en lecture)
 - **Mobile** : Optimisé pour tous les appareils
 
 ## 🤝 Contribution
