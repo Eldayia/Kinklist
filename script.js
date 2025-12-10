@@ -260,6 +260,12 @@ function setupEventListeners() {
     const shareBtn = document.getElementById('share-btn');
     shareBtn.addEventListener('click', generateShareLink);
 
+    // Share site button (in header)
+    const shareSiteBtn = document.getElementById('share-site-btn');
+    if (shareSiteBtn) {
+        shareSiteBtn.addEventListener('click', shareSiteLink);
+    }
+
     // Export button (Image)
     const exportImageBtn = document.getElementById('export-image-btn');
     exportImageBtn.addEventListener('click', exportKinklistAsImage);
@@ -778,6 +784,19 @@ function decodeAndDecompress(encoded) {
         console.error('Error decoding shared data:', e);
         return null;
     }
+}
+
+// Share site link (without selections)
+function shareSiteLink() {
+    const siteUrl = 'https://kinklist.eldadev.fr';
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(siteUrl).then(() => {
+        alert('Lien du site copié dans le presse-papier !\n\n' + siteUrl);
+    }).catch(() => {
+        // Fallback: show the link in a prompt
+        prompt('Copiez ce lien pour partager le site :', siteUrl);
+    });
 }
 
 // Generate share link
