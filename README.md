@@ -28,7 +28,9 @@ Chaque forme utilise également une couleur pour un double encodage, mais les fo
   - Par catégorie
   - Par statut de sélection
   - Combinaison des filtres
-- **Export/Import** : Sauvegardez et partagez votre liste au format JSON
+- **Partage par lien** : Générez un lien court optimisé pour partager vos sélections (compression gzip)
+- **Export en image** : Exportez votre kinklist en image haute qualité pour Discord, Twitter, etc.
+- **Bouton de partage du site** : Copiez facilement le lien du site depuis le header
 - **Sauvegarde automatique** : Vos sélections sont enregistrées dans le navigateur
 - **Compteurs** : Visualisez le nombre de sélections par catégorie
 - **Responsive** : S'adapte à tous les écrans (mobile, tablette, desktop)
@@ -134,15 +136,22 @@ Pour modifier la configuration nginx, éditez le fichier `nginx.conf`. La config
 - Sélectionnez une catégorie dans le menu déroulant
 - Filtrez par statut pour voir uniquement vos sélections
 
-### Exporter votre liste
-1. Cliquez sur "Exporter ma liste"
-2. Un fichier JSON sera téléchargé avec vos sélections
-3. Vous pouvez partager ce fichier avec d'autres personnes
+### Partager vos sélections
+1. Cliquez sur "Partager" dans les contrôles
+2. Un lien court sera copié dans votre presse-papier
+3. Partagez ce lien avec d'autres personnes
+4. Ils verront vos sélections et pourront choisir de les importer
 
-### Importer une liste
-1. Cliquez sur "Importer une liste"
-2. Sélectionnez un fichier JSON exporté précédemment
-3. Choisissez de remplacer ou fusionner avec vos sélections actuelles
+**Note** : Les liens sont ultra-compacts grâce à la compression gzip (format v2) !
+
+### Exporter en image
+1. Cliquez sur "Exporter (Image)"
+2. Une image PNG haute qualité sera téléchargée
+3. Format optimisé pour Discord, Twitter et autres réseaux sociaux
+4. Mise en page professionnelle avec catégories en colonnes
+
+### Partager le site
+Cliquez sur "Partager le site" dans le header pour copier le lien https://kinklist.eldadev.fr (sans vos sélections personnelles)
 
 ## 🎨 Accessibilité
 
@@ -169,12 +178,15 @@ Kinklist/
 ├── style.css           # Styles et icônes accessibles
 ├── script.js           # Logique interactive
 ├── kinks-data.js       # Base de données des kinks
+├── favicon.svg         # Favicon personnalisé avec dégradé thématique
 ├── Dockerfile          # Configuration Docker
 ├── docker-compose.yml  # Orchestration Docker
 ├── nginx.conf          # Configuration Nginx
 ├── .dockerignore       # Fichiers exclus du build Docker
 ├── .env.example        # Exemple de variables d'environnement
-└── README.md           # Documentation
+├── README.md           # Documentation utilisateur
+├── Claude.md           # Documentation pour Claude Code
+└── WARP.md             # Directives pour WARP terminal
 ```
 
 ## 🛠️ Technologies
@@ -183,7 +195,8 @@ Kinklist/
 - CSS3 (Grid, Flexbox, Custom Properties)
 - JavaScript Vanilla (ES6+)
 - LocalStorage pour la persistance
-- Aucune dépendance externe
+- **Pako** (gzip) pour la compression des liens de partage
+- Canvas API pour l'export en image (avec fallback html2canvas)
 
 ## 🔒 Confidentialité
 
@@ -221,18 +234,27 @@ Kinklist/
 - **Respectez les limites** : Les "Hard Limits" doivent toujours être respectés
 - **Explorez** : La catégorie "Curieux/se" est là pour découvrir de nouvelles choses
 
-## 📝 Format d'export
+## 🔗 Système de partage par lien
 
-Le fichier JSON exporté contient :
-```json
-{
-  "version": "1.0",
-  "date": "2025-11-21T...",
-  "selections": {
-    "Catégorie::Kink": "status"
-  }
-}
-```
+### Format de lien optimisé (v2)
+
+Les liens de partage utilisent une compression avancée pour générer des URLs ultra-courtes :
+
+**Format** : `https://kinklist.eldadev.fr/#share=v2_[données-compressées]`
+
+**Processus** :
+1. Indexation numérique des kinks (au lieu de chaînes complètes)
+2. Encodage compact des statuts (`l`=love, `k`=like, `c`=curious, `m`=maybe, `n`=no, `h`=limit)
+3. Compression gzip avec pako
+4. Encodage base64 URL-safe
+
+**Résultat** : Un lien contenant 50+ sélections en ~100-150 caractères ! 🎉
+
+### Compatibilité
+
+- **Format v2** : Utilisé par défaut (compression maximale)
+- **Format legacy** : Supporté en lecture pour rétrocompatibilité
+- **Mobile** : Optimisé pour tous les appareils
 
 ## 🤝 Contribution
 
