@@ -17,6 +17,26 @@ const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
+
+// Cache control pour les fichiers statiques
+app.use((req, res, next) => {
+    // Pas de cache pour les fichiers JS/CSS (toujours recharger)
+    if (req.url.match(/\.(js|css)$/)) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+    // Cache court pour HTML
+    else if (req.url.match(/\.(html|htm)$/)) {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+    // Cache long pour les autres assets (images, favicon, etc.)
+    else {
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // 24h
+    }
+    next();
+});
+
 app.use(express.static('.', {
     index: 'index.html',
     extensions: ['html', 'htm']
