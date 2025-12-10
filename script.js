@@ -799,7 +799,7 @@ function shareSiteLink() {
     });
 }
 
-// Generate share link (avec API backend)
+// Generate share link (avec API backend et fallback)
 async function generateShareLink() {
     if (Object.keys(kinkSelections).length === 0) {
         alert('Vous n\'avez aucune sélection à partager. Sélectionnez des kinks avant de partager.');
@@ -807,7 +807,7 @@ async function generateShareLink() {
     }
 
     try {
-        // Appel à l'API backend pour créer un lien court
+        // Tentative d'appel à l'API backend pour créer un lien court
         const response = await fetch('/api/share', {
             method: 'POST',
             headers: {
@@ -830,8 +830,25 @@ async function generateShareLink() {
             prompt('Copiez ce lien pour partager votre kinklist :', url);
         });
     } catch (error) {
-        console.error('Erreur lors de la génération du lien:', error);
-        alert('Erreur : ' + error.message + '\n\nVérifiez que le serveur est accessible.');
+        console.warn('API backend non disponible, utilisation du format legacy:', error);
+
+        // Fallback vers l'ancien système compressé si l'API n'est pas disponible
+        try {
+            const encoded = compressAndEncode(kinkSelections);
+            const url = new URL(window.location.href);
+            url.hash = `share=${encoded}`;
+
+            // Copy to clipboard
+            navigator.clipboard.writeText(url.toString()).then(() => {
+                alert('Lien de partage copié dans le presse-papier !\n\nNote : Lien au format legacy (backend non disponible).\n\nPartagez ce lien pour que d\'autres puissent voir votre kinklist.');
+            }).catch(() => {
+                // Fallback: show the link in a prompt
+                prompt('Copiez ce lien pour partager votre kinklist :', url.toString());
+            });
+        } catch (fallbackError) {
+            console.error('Erreur lors du fallback:', fallbackError);
+            alert('Erreur : Impossible de générer le lien de partage.\n\n' + fallbackError.message);
+        }
     }
 }
 
