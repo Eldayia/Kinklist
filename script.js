@@ -373,13 +373,18 @@ async function exportKinklistAsImage() {
             return;
         }
 
-        // 5) Dessiner sur canvas (méthode native)
+        // 5) Dessiner sur canvas (méthode native) avec résolution optimisée pour Discord
         const canvas = document.createElement('canvas');
-        const scale = 2; // HiDPI
+        const scale = 2.5; // Équilibre qualité/taille pour Discord
         canvas.width = config.width * scale;
         canvas.height = totalHeight * scale;
         const ctx = canvas.getContext('2d');
         ctx.scale(scale, scale);
+
+        // Optimisation du rendu texte
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.textRendering = 'optimizeLegibility';
 
         // Fond
         ctx.fillStyle = '#fafaf9';
@@ -394,10 +399,10 @@ async function exportKinklistAsImage() {
         ctx.fillStyle = headerGradient;
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.headerHeight, 12, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = '700 48px Fraunces, serif';
+        ctx.font = '700 54px Fraunces, serif';
         ctx.textAlign = 'center';
         ctx.fillText('Ma Kinklist', config.width / 2, y + 52);
-        ctx.font = '400 22px "DM Sans", sans-serif';
+        ctx.font = '400 26px "DM Sans", sans-serif';
         ctx.globalAlpha = 0.95;
         ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 88);
         ctx.globalAlpha = 1;
@@ -414,9 +419,9 @@ async function exportKinklistAsImage() {
         const legendBgs = { love: '#fee2e2', like: '#ffedd5', curious: '#dbeafe', maybe: '#cffafe', no: '#e5e5e5', limit: '#f5f5f5' };
 
         // Calculer la largeur totale
-        ctx.font = '700 24px "DM Sans", sans-serif';
+        ctx.font = '700 28px "DM Sans", sans-serif';
         const legendTitleWidth = ctx.measureText('LÉGENDE').width + 35;
-        ctx.font = '500 20px "DM Sans", sans-serif';
+        ctx.font = '500 24px "DM Sans", sans-serif';
         let totalWidth = legendTitleWidth;
         const pillWidths = [];
         legendItems.forEach((status) => {
@@ -431,7 +436,7 @@ async function exportKinklistAsImage() {
 
         // Dessiner "LÉGENDE"
         ctx.fillStyle = '#000000';
-        ctx.font = '700 24px "DM Sans", sans-serif';
+        ctx.font = '700 28px "DM Sans", sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText('LÉGENDE', legendX, legendY);
@@ -442,9 +447,9 @@ async function exportKinklistAsImage() {
             const pillWidth = pillWidths[index];
             ctx.fillStyle = legendBgs[status];
             roundRect(ctx, legendX, legendY - 19, pillWidth, 38, 8, true, false);
-            drawStatusIcon(ctx, status, legendX + 20, legendY, config.colors, 1.3);
+            drawStatusIcon(ctx, status, legendX + 20, legendY, config.colors, 1.5);
             ctx.fillStyle = config.colors[status];
-            ctx.font = '500 20px "DM Sans", sans-serif';
+            ctx.font = '600 24px "DM Sans", sans-serif';
             ctx.textBaseline = 'middle';
             ctx.fillText(config.labels[status], legendX + 45, legendY);
             legendX += pillWidth + 12;
@@ -476,7 +481,7 @@ async function exportKinklistAsImage() {
                 ctx.fillStyle = '#f5f5f4';
                 roundRect(ctx, categoryX, y, categoryWidth, config.categoryHeaderHeight, 12, true, false);
                 ctx.fillStyle = '#1c1917';
-                ctx.font = '600 28px Fraunces, serif';
+                ctx.font = '600 32px Fraunces, serif';
                 ctx.textAlign = 'left';
                 ctx.fillText(category, categoryX + 25, y + 42);
 
@@ -490,9 +495,9 @@ async function exportKinklistAsImage() {
 
                     ctx.fillStyle = '#fafaf9';
                     roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 8, true, false);
-                    drawStatusIcon(ctx, item.status, itemX + 20, itemY + config.itemHeight / 2, config.colors, 1.6);
+                    drawStatusIcon(ctx, item.status, itemX + 20, itemY + config.itemHeight / 2, config.colors, 1.8);
                     ctx.fillStyle = '#1c1917';
-                    ctx.font = '600 20px "DM Sans", sans-serif';
+                    ctx.font = '600 24px "DM Sans", sans-serif';
                     ctx.textAlign = 'left';
                     const maxTextWidth = itemWidth - 70;
                     let text = item.kink;
@@ -515,14 +520,14 @@ async function exportKinklistAsImage() {
         ctx.lineWidth = 1;
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, false, true);
         ctx.fillStyle = '#78716c';
-        ctx.font = '500 20px "DM Sans", sans-serif';
+        ctx.font = '500 24px "DM Sans", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Développé par EldaDev / Twitter : @eldadev_ / @eldayia', config.width / 2, y + config.footerHeight / 2 + 8);
 
-        // 6) Générer et télécharger
+        // 6) Générer et télécharger en JPEG haute qualité
         const blob = await canvasToBlobAsync(canvas);
         if (!blob) throw new Error('Impossible de créer l\'image');
-        downloadBlob(`kinklist-${new Date().toISOString().split('T')[0]}.png`, blob);
+        downloadBlob(`kinklist-${new Date().toISOString().split('T')[0]}.jpg`, blob);
         alert('Votre kinklist a été exportée en image avec succès !');
     } catch (error) {
         console.error('Erreur export image:', error);
@@ -546,10 +551,10 @@ async function exportKinklistAsImage() {
     // Helpers internes
     async function canvasToBlobAsync(canvas) {
         if (canvas.toBlob) {
-            return await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
         }
         // Polyfill via dataURL
-        const dataUrl = canvas.toDataURL('image/png');
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         const res = await fetch(dataUrl);
         return await res.blob();
     }
