@@ -1,6 +1,13 @@
 // State management
 let kinkSelections = {};
+let userInfo = {
+    name: '',
+    gender: '',
+    sexuality: '',
+    preference: ''
+};
 const STORAGE_KEY = 'kinklist-selections';
+const USER_INFO_KEY = 'kinklist-user-info';
 
 // Status types
 const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
@@ -8,6 +15,8 @@ const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
     loadFromLocalStorage();
+    loadUserInfoFromLocalStorage();
+    populateUserInfoFields();
     loadSharedData(); // Check for shared data in URL
     renderKinklist();
     setupEventListeners();
@@ -27,12 +36,42 @@ function loadFromLocalStorage() {
     }
 }
 
+// Load user info from localStorage
+function loadUserInfoFromLocalStorage() {
+    const saved = localStorage.getItem(USER_INFO_KEY);
+    if (saved) {
+        try {
+            userInfo = JSON.parse(saved);
+        } catch (e) {
+            console.error('Error loading user info:', e);
+            userInfo = { name: '', gender: '', sexuality: '', preference: '' };
+        }
+    }
+}
+
+// Populate user info fields with saved data
+function populateUserInfoFields() {
+    document.getElementById('user-name').value = userInfo.name || '';
+    document.getElementById('user-gender').value = userInfo.gender || '';
+    document.getElementById('user-sexuality').value = userInfo.sexuality || '';
+    document.getElementById('user-preference').value = userInfo.preference || '';
+}
+
 // Save selections to localStorage
 function saveToLocalStorage() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(kinkSelections));
     } catch (e) {
         console.error('Error saving data:', e);
+    }
+}
+
+// Save user info to localStorage
+function saveUserInfoToLocalStorage() {
+    try {
+        localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
+    } catch (e) {
+        console.error('Error saving user info:', e);
     }
 }
 
@@ -238,6 +277,32 @@ function updateCategoryCount(categoryElement) {
 
 // Setup event listeners
 function setupEventListeners() {
+    // User info fields
+    const userNameInput = document.getElementById('user-name');
+    const userGenderInput = document.getElementById('user-gender');
+    const userSexualityInput = document.getElementById('user-sexuality');
+    const userPreferenceSelect = document.getElementById('user-preference');
+
+    userNameInput.addEventListener('input', (e) => {
+        userInfo.name = e.target.value;
+        saveUserInfoToLocalStorage();
+    });
+
+    userGenderInput.addEventListener('input', (e) => {
+        userInfo.gender = e.target.value;
+        saveUserInfoToLocalStorage();
+    });
+
+    userSexualityInput.addEventListener('input', (e) => {
+        userInfo.sexuality = e.target.value;
+        saveUserInfoToLocalStorage();
+    });
+
+    userPreferenceSelect.addEventListener('change', (e) => {
+        userInfo.preference = e.target.value;
+        saveUserInfoToLocalStorage();
+    });
+
     // Search
     const searchInput = document.getElementById('search');
     searchInput.addEventListener('input', (e) => {
@@ -303,11 +368,38 @@ async function exportKinklistAsImage() {
     exportBtn.textContent = 'Génération en cours...';
     exportBtn.disabled = true;
 
+    // Variable pour stocker l'ID de partage
+    let shareId = null;
+
     try {
         // 1) Sélections nécessaires
         if (Object.keys(kinkSelections).length === 0) {
             alert('Vous n\'avez aucune sélection à exporter. Sélectionnez des kinks avant d\'exporter en image.');
             return;
+        }
+
+        // 1.5) Générer un lien de partage pour obtenir l'ID
+        try {
+            const shareData = {
+                selections: kinkSelections,
+                userInfo: userInfo
+            };
+
+            const response = await fetch('/api/share', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: shareData })
+            });
+
+            if (response.ok) {
+                const { id } = await response.json();
+                shareId = id;
+            }
+        } catch (error) {
+            console.warn('Impossible de générer un ID de partage:', error);
+            // Continue sans ID si l'API n'est pas disponible
         }
 
         // 2) Agréger par catégories
@@ -324,6 +416,7 @@ async function exportKinklistAsImage() {
             width: 2400,
             padding: 35,
             headerHeight: 110,
+            userInfoHeight: 0, // Calculé dynamiquement selon les infos remplies
             legendHeight: 80,
             categoryHeaderHeight: 65,
             itemHeight: 58,
@@ -336,6 +429,12 @@ async function exportKinklistAsImage() {
             colors: { love: '#ef4444', like: '#fdba74', curious: '#3b82f6', maybe: '#06b6d4', no: '#525252', limit: '#000000' },
             labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit' }
         };
+
+        // Calculer la hauteur de la section infos perso (si au moins un champ rempli)
+        const hasUserInfo = userInfo.name || userInfo.gender || userInfo.sexuality || userInfo.preference;
+        if (hasUserInfo) {
+            config.userInfoHeight = 100; // Hauteur fixe pour la section infos perso
+        }
 
         // Calcul de la hauteur avec catégories en colonnes
         const categories = Object.entries(categoriesWithSelections);
@@ -354,8 +453,12 @@ async function exportKinklistAsImage() {
             rowHeights.push(maxHeightInRow);
         }
 
-        let totalHeight = config.padding * 2 + config.headerHeight + config.legendHeight + config.footerHeight;
+        let totalHeight = config.padding * 2 + config.headerHeight + config.userInfoHeight + config.legendHeight + config.footerHeight;
         totalHeight += rowHeights.reduce((sum, height) => sum + height + config.sectionGap, 0);
+        // Ajouter un espace entre les sections si infos perso présentes
+        if (hasUserInfo) {
+            totalHeight += 20; // Espace après infos perso
+        }
 
         // 4) Limite de taille des canvases (Chrome/Edge/Firefox ~16k-32k)
         const MAX_CANVAS = 16384; // sécurité multi-navigateurs
@@ -407,6 +510,83 @@ async function exportKinklistAsImage() {
         ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 88);
         ctx.globalAlpha = 1;
         y += config.headerHeight + 20;
+
+        // Section infos personnelles (si au moins un champ rempli)
+        if (hasUserInfo) {
+            ctx.fillStyle = 'white';
+            roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.userInfoHeight, 12, true, false);
+            ctx.strokeStyle = '#e7e5e4';
+            ctx.lineWidth = 1;
+            roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.userInfoHeight, 12, false, true);
+
+            // Construire le texte sur une seule ligne avec séparateurs
+            const infoY = y + config.userInfoHeight / 2 + 8;
+            const infoItems = [];
+
+            if (userInfo.name) {
+                infoItems.push({ label: 'Nom', value: userInfo.name });
+            }
+            if (userInfo.gender) {
+                infoItems.push({ label: 'Genre', value: userInfo.gender });
+            }
+            if (userInfo.sexuality) {
+                infoItems.push({ label: 'Sexualité', value: userInfo.sexuality });
+            }
+            if (userInfo.preference) {
+                infoItems.push({ label: 'Préférence', value: userInfo.preference });
+            }
+
+            // Calculer la largeur totale pour centrer
+            ctx.font = '600 24px "DM Sans", sans-serif';
+            let totalWidth = 0;
+            const itemWidths = [];
+
+            infoItems.forEach((item, index) => {
+                const labelWidth = ctx.measureText(item.label + ' ').width;
+                const valueWidth = ctx.measureText(item.value).width;
+                const itemWidth = labelWidth + valueWidth;
+                itemWidths.push({ labelWidth, valueWidth, itemWidth });
+                totalWidth += itemWidth;
+
+                // Ajouter la largeur du séparateur (sauf pour le dernier)
+                if (index < infoItems.length - 1) {
+                    totalWidth += 50; // Espace pour le séparateur •
+                }
+            });
+
+            // Position de départ pour centrer
+            let currentX = (config.width - totalWidth) / 2;
+            ctx.textBaseline = 'middle';
+
+            infoItems.forEach((item, index) => {
+                const widths = itemWidths[index];
+
+                // Label (gris, plus petit)
+                ctx.fillStyle = '#78716c';
+                ctx.font = '500 22px "DM Sans", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(item.label + ' ', currentX, infoY);
+                currentX += widths.labelWidth;
+
+                // Valeur (noir, plus gros)
+                ctx.fillStyle = '#1c1917';
+                ctx.font = '600 26px "DM Sans", sans-serif';
+                ctx.fillText(item.value, currentX, infoY);
+                currentX += widths.valueWidth;
+
+                // Séparateur (sauf pour le dernier)
+                if (index < infoItems.length - 1) {
+                    ctx.fillStyle = '#d6d3d1';
+                    ctx.font = '400 28px "DM Sans", sans-serif';
+                    ctx.textAlign = 'center';
+                    currentX += 25;
+                    ctx.fillText('•', currentX, infoY);
+                    currentX += 25;
+                }
+            });
+
+            y += config.userInfoHeight + 20;
+        }
 
         // Légende sur une seule ligne centrée
         ctx.fillStyle = 'white';
@@ -519,16 +699,31 @@ async function exportKinklistAsImage() {
         ctx.strokeStyle = '#e7e5e4';
         ctx.lineWidth = 1;
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, false, true);
+
+        // Texte centré
         ctx.fillStyle = '#78716c';
         ctx.font = '500 24px "DM Sans", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Développé par EldaDev / Twitter : @eldadev_ / @eldayia', config.width / 2, y + config.footerHeight / 2 + 8);
 
+        // ID de partage en bas à droite (si disponible)
+        if (shareId) {
+            ctx.fillStyle = '#a8a29e';
+            ctx.font = '600 22px "DM Sans", sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`#s/${shareId}`, config.width - config.padding - 30, y + config.footerHeight / 2 + 8);
+        }
+
         // 6) Générer et télécharger en JPEG haute qualité
         const blob = await canvasToBlobAsync(canvas);
         if (!blob) throw new Error('Impossible de créer l\'image');
         downloadBlob(`kinklist-${new Date().toISOString().split('T')[0]}.jpg`, blob);
-        alert('Votre kinklist a été exportée en image avec succès !');
+
+        if (shareId) {
+            alert(`Votre kinklist a été exportée en image avec succès !\n\nL'identifiant de partage #s/${shareId} a été ajouté en bas à droite de l'image.`);
+        } else {
+            alert('Votre kinklist a été exportée en image avec succès !');
+        }
     } catch (error) {
         console.error('Erreur export image:', error);
         // Repli html2canvas si dispo
@@ -847,13 +1042,19 @@ async function generateShareLink() {
     }
 
     try {
+        // Préparer les données à partager (sélections + infos perso)
+        const shareData = {
+            selections: kinkSelections,
+            userInfo: userInfo
+        };
+
         // Tentative d'appel à l'API backend pour créer un lien court
         const response = await fetch('/api/share', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ data: kinkSelections })
+            body: JSON.stringify({ data: shareData })
         });
 
         if (!response.ok) {
@@ -908,8 +1109,15 @@ async function loadSharedData() {
                     throw new Error(`Lien non trouvé (${response.status})`);
                 }
 
-                const { data: sharedSelections } = await response.json();
-                await handleSharedData(sharedSelections);
+                const { data: sharedData } = await response.json();
+
+                // Nouveau format avec selections + userInfo
+                if (sharedData.selections) {
+                    await handleSharedData(sharedData.selections, sharedData.userInfo);
+                } else {
+                    // Ancien format (rétrocompatibilité)
+                    await handleSharedData(sharedData);
+                }
             } catch (error) {
                 console.error('Erreur chargement lien court:', error);
                 alert('Erreur : Le lien de partage est invalide ou a expiré.');
@@ -935,7 +1143,7 @@ async function loadSharedData() {
 }
 
 // Helper function to handle shared data import
-async function handleSharedData(sharedSelections) {
+async function handleSharedData(sharedSelections, sharedUserInfo = null) {
     const hasLocalData = Object.keys(kinkSelections).length > 0;
 
     if (hasLocalData) {
@@ -948,12 +1156,21 @@ async function handleSharedData(sharedSelections) {
 
         if (choice) {
             kinkSelections = sharedSelections;
+            if (sharedUserInfo) {
+                userInfo = sharedUserInfo;
+                saveUserInfoToLocalStorage();
+                populateUserInfoFields();
+            }
             saveToLocalStorage();
             window.location.hash = '';
             alert('Kinklist importée avec succès !');
         } else {
             // Just display without saving
             kinkSelections = sharedSelections;
+            if (sharedUserInfo) {
+                userInfo = sharedUserInfo;
+                populateUserInfoFields();
+            }
         }
     } else {
         // No local data, just import
@@ -966,12 +1183,21 @@ async function handleSharedData(sharedSelections) {
 
         if (choice) {
             kinkSelections = sharedSelections;
+            if (sharedUserInfo) {
+                userInfo = sharedUserInfo;
+                saveUserInfoToLocalStorage();
+                populateUserInfoFields();
+            }
             saveToLocalStorage();
             window.location.hash = '';
             alert('Kinklist importée avec succès !');
         } else {
             // Just display without saving
             kinkSelections = sharedSelections;
+            if (sharedUserInfo) {
+                userInfo = sharedUserInfo;
+                populateUserInfoFields();
+            }
         }
     }
 }
@@ -979,15 +1205,18 @@ async function handleSharedData(sharedSelections) {
 // Reset kinklist
 function resetKinklist() {
     const confirmReset = confirm(
-        'Êtes-vous sûr(e) de vouloir réinitialiser toute votre kinklist ?\n\n' +
+        'Êtes-vous sûr(e) de vouloir réinitialiser toute votre kinklist et vos informations personnelles ?\n\n' +
         'Cette action est irréversible.'
     );
 
     if (confirmReset) {
         kinkSelections = {};
+        userInfo = { name: '', gender: '', sexuality: '', preference: '' };
         saveToLocalStorage();
+        saveUserInfoToLocalStorage();
+        populateUserInfoFields();
         applyFilters();
-        alert('Votre kinklist a été réinitialisée.');
+        alert('Votre kinklist et vos informations personnelles ont été réinitialisées.');
     }
 }
 
