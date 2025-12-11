@@ -324,7 +324,7 @@ async function exportKinklistAsImage() {
             width: 2400,
             padding: 35,
             headerHeight: 110,
-            legendHeight: 120,
+            legendHeight: 80,
             categoryHeaderHeight: 65,
             itemHeight: 58,
             itemsPerRow: 2, // 2 items par ligne dans chaque catégorie
@@ -333,7 +333,7 @@ async function exportKinklistAsImage() {
             categoryGap: 20,
             sectionGap: 25,
             footerHeight: 75,
-            colors: { love: '#d81b60', like: '#1e88e5', curious: '#ffa726', maybe: '#9c27b0', no: '#757575', limit: '#000000' },
+            colors: { love: '#ef4444', like: '#fdba74', curious: '#3b82f6', maybe: '#06b6d4', no: '#525252', limit: '#000000' },
             labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit' }
         };
 
@@ -382,48 +382,74 @@ async function exportKinklistAsImage() {
         ctx.scale(scale, scale);
 
         // Fond
-        ctx.fillStyle = '#f5f5f5';
+        ctx.fillStyle = '#fafaf9';
         ctx.fillRect(0, 0, config.width, totalHeight);
 
         let y = config.padding;
 
-        // En-tête dégradé
+        // En-tête avec dégradé violet
         const headerGradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
-        headerGradient.addColorStop(0, '#667eea');
-        headerGradient.addColorStop(1, '#764ba2');
+        headerGradient.addColorStop(0, '#a855f7');
+        headerGradient.addColorStop(1, '#ec4899');
         ctx.fillStyle = headerGradient;
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.headerHeight, 12, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 48px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        ctx.font = '700 48px Fraunces, serif';
         ctx.textAlign = 'center';
         ctx.fillText('Ma Kinklist', config.width / 2, y + 52);
-        ctx.font = '22px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-        ctx.globalAlpha = 0.9;
+        ctx.font = '400 22px "DM Sans", sans-serif';
+        ctx.globalAlpha = 0.95;
         ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 88);
         ctx.globalAlpha = 1;
         y += config.headerHeight + 20;
 
-        // Légende (1 ligne avec la largeur augmentée)
+        // Légende sur une seule ligne centrée
         ctx.fillStyle = 'white';
         roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.legendHeight, 12, true, false);
-        ctx.fillStyle = '#212121';
-        ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('Légende', config.padding + 25, y + 40);
+        ctx.strokeStyle = '#e7e5e4';
+        ctx.lineWidth = 1;
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.legendHeight, 12, false, true);
+
         const legendItems = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
-        let legendX = config.padding + 25;
-        const legendY = y + 95;
-        legendItems.forEach((status, index) => {
-            ctx.fillStyle = '#f5f5f5';
-            ctx.font = '22px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        const legendBgs = { love: '#fee2e2', like: '#ffedd5', curious: '#dbeafe', maybe: '#cffafe', no: '#e5e5e5', limit: '#f5f5f5' };
+
+        // Calculer la largeur totale
+        ctx.font = '700 24px "DM Sans", sans-serif';
+        const legendTitleWidth = ctx.measureText('LÉGENDE').width + 35;
+        ctx.font = '500 20px "DM Sans", sans-serif';
+        let totalWidth = legendTitleWidth;
+        const pillWidths = [];
+        legendItems.forEach((status) => {
             const pillWidth = ctx.measureText(config.labels[status]).width + 70;
-            roundRect(ctx, legendX, legendY - 18, pillWidth, 42, 10, true, false);
-            drawStatusIcon(ctx, status, legendX + 22, legendY, config.colors, 1.5);
-            ctx.fillStyle = '#212121';
-            ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
-            ctx.fillText(config.labels[status], legendX + 50, legendY + 8);
-            legendX += pillWidth + 15;
+            pillWidths.push(pillWidth);
+            totalWidth += pillWidth + 12;
         });
+
+        // Centrer horizontalement
+        let legendX = (config.width - totalWidth) / 2;
+        const legendY = y + config.legendHeight / 2;
+
+        // Dessiner "LÉGENDE"
+        ctx.fillStyle = '#000000';
+        ctx.font = '700 24px "DM Sans", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('LÉGENDE', legendX, legendY);
+        legendX += legendTitleWidth;
+
+        // Dessiner les items
+        legendItems.forEach((status, index) => {
+            const pillWidth = pillWidths[index];
+            ctx.fillStyle = legendBgs[status];
+            roundRect(ctx, legendX, legendY - 19, pillWidth, 38, 8, true, false);
+            drawStatusIcon(ctx, status, legendX + 20, legendY, config.colors, 1.3);
+            ctx.fillStyle = config.colors[status];
+            ctx.font = '500 20px "DM Sans", sans-serif';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(config.labels[status], legendX + 45, legendY);
+            legendX += pillWidth + 12;
+        });
+
         y += config.legendHeight + 25;
 
         // Catégories + items (en colonnes)
@@ -442,12 +468,17 @@ async function exportKinklistAsImage() {
                 // Fond de la catégorie
                 ctx.fillStyle = 'white';
                 roundRect(ctx, categoryX, y, categoryWidth, categoryHeight, 12, true, false);
+                ctx.strokeStyle = '#e7e5e4';
+                ctx.lineWidth = 1;
+                roundRect(ctx, categoryX, y, categoryWidth, categoryHeight, 12, false, true);
 
-                // Titre de la catégorie
-                ctx.fillStyle = '#212121';
-                ctx.font = 'bold 32px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                // Header de la catégorie
+                ctx.fillStyle = '#f5f5f4';
+                roundRect(ctx, categoryX, y, categoryWidth, config.categoryHeaderHeight, 12, true, false);
+                ctx.fillStyle = '#1c1917';
+                ctx.font = '600 28px Fraunces, serif';
                 ctx.textAlign = 'left';
-                ctx.fillText(category, categoryX + 25, y + 45);
+                ctx.fillText(category, categoryX + 25, y + 42);
 
                 // Items de la catégorie
                 const itemWidth = (categoryWidth - 40) / config.itemsPerRow;
@@ -457,11 +488,11 @@ async function exportKinklistAsImage() {
                     const itemX = categoryX + 20 + col * (itemWidth + config.itemGap);
                     const itemY = y + config.categoryHeaderHeight + row * (config.itemHeight + config.itemGap);
 
-                    ctx.fillStyle = '#f5f5f5';
+                    ctx.fillStyle = '#fafaf9';
                     roundRect(ctx, itemX, itemY, itemWidth - config.itemGap, config.itemHeight, 8, true, false);
                     drawStatusIcon(ctx, item.status, itemX + 20, itemY + config.itemHeight / 2, config.colors, 1.6);
-                    ctx.fillStyle = '#212121';
-                    ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+                    ctx.fillStyle = '#1c1917';
+                    ctx.font = '600 20px "DM Sans", sans-serif';
                     ctx.textAlign = 'left';
                     const maxTextWidth = itemWidth - 70;
                     let text = item.kink;
@@ -478,10 +509,13 @@ async function exportKinklistAsImage() {
         }
 
         // Pied de page
-        ctx.fillStyle = '#212121';
-        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, true, false);
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif';
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, true, false);
+        ctx.strokeStyle = '#e7e5e4';
+        ctx.lineWidth = 1;
+        roundRect(ctx, config.padding, y, config.width - config.padding * 2, config.footerHeight, 12, false, true);
+        ctx.fillStyle = '#78716c';
+        ctx.font = '500 20px "DM Sans", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('Développé par EldaDev / Twitter : @eldadev_ / @eldayia', config.width / 2, y + config.footerHeight / 2 + 8);
 
