@@ -11,6 +11,7 @@ let expandedCategories = new Set();
 const STORAGE_KEY = 'kinklist-selections';
 const USER_INFO_KEY = 'kinklist-user-info';
 const ROLES_KEY = 'kinklist-roles';
+const DEV_BACKUP_KEY = 'kinklist-dev-test-backup';
 
 // Status types
 const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
@@ -1553,6 +1554,108 @@ function getStatistics() {
 
     return stats;
 }
+
+function createSeededRandom(seed) {
+    let state = (Number(seed) >>> 0) || 0x45da1a;
+    return () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 4294967296;
+    };
+}
+
+function fillDevImageTestData(seed = 20260721, withProfile = false) {
+    if (!localStorage.getItem(DEV_BACKUP_KEY)) {
+        localStorage.setItem(DEV_BACKUP_KEY, JSON.stringify({
+            selections: kinkSelections,
+            roles: kinkRoles,
+            userInfo
+        }));
+    }
+
+    const random = createSeededRandom(seed);
+    const roleTypes = ['gives', 'receives', 'both', null];
+    const roleCounts = { gives: 0, receives: 0, both: 0, none: 0 };
+    kinkSelections = {};
+    kinkRoles = {};
+
+    Object.entries(kinksData).forEach(([category, kinks]) => {
+        kinks.forEach(kink => {
+            const kinkId = `${category}::${kink}`;
+            const status = STATUS_TYPES[Math.floor(random() * STATUS_TYPES.length)];
+            const role = roleTypes[Math.floor(random() * roleTypes.length)];
+
+            kinkSelections[kinkId] = status;
+            if (role) {
+                kinkRoles[kinkId] = role;
+                roleCounts[role]++;
+            } else {
+                roleCounts.none++;
+            }
+        });
+    });
+
+    if (withProfile) {
+        userInfo = {
+            name: 'Profil de test',
+            gender: 'Genre de test',
+            sexuality: 'Sexualité de test',
+            preference: 'Switch'
+        };
+        saveUserInfoToLocalStorage();
+        populateUserInfoFields();
+    }
+
+    saveToLocalStorage();
+    saveRolesToLocalStorage();
+    applyFilters();
+
+    return {
+        seed: Number(seed),
+        totalKinks: Object.keys(kinkSelections).length,
+        statuses: getStatistics(),
+        roles: roleCounts,
+        profileIncluded: Boolean(withProfile),
+        restoreCommand: 'window.__eldaKinkTest.restore()'
+    };
+}
+
+function restoreDevImageTestData() {
+    const savedBackup = localStorage.getItem(DEV_BACKUP_KEY);
+    if (!savedBackup) {
+        return { restored: false, reason: 'Aucune sauvegarde de test disponible.' };
+    }
+
+    try {
+        const backup = JSON.parse(savedBackup);
+        kinkSelections = backup.selections || {};
+        kinkRoles = backup.roles || {};
+        userInfo = backup.userInfo || { name: '', gender: '', sexuality: '', preference: '' };
+
+        saveToLocalStorage();
+        saveRolesToLocalStorage();
+        saveUserInfoToLocalStorage();
+        populateUserInfoFields();
+        applyFilters();
+        localStorage.removeItem(DEV_BACKUP_KEY);
+
+        return {
+            restored: true,
+            totalKinks: Object.keys(kinkSelections).length
+        };
+    } catch (error) {
+        return { restored: false, reason: error.message };
+    }
+}
+
+Object.defineProperty(window, '__eldaKinkTest', {
+    value: Object.freeze({
+        fill: fillDevImageTestData,
+        restore: restoreDevImageTestData
+    }),
+    enumerable: false,
+    configurable: false,
+    writable: false
+});
 
 // Console helper for statistics
 window.getKinklistStats = getStatistics;

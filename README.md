@@ -168,6 +168,30 @@ Le backend expose les endpoints suivants :
 ### Partager le site
 Cliquez sur "Partager le site" dans le header pour copier le lien https://kink.eldayia.fr (sans vos sélections personnelles)
 
+## 🧪 Outils de test développeur
+
+Une commande privée permet de remplir automatiquement l'intégralité de la kinklist afin de tester les filtres, le partage et la génération d'image sans sélectionner manuellement chaque kink.
+
+Ouvrez la console du navigateur avec `F12`, puis utilisez :
+
+```javascript
+// Remplir tous les kinks avec des statuts et rôles variés
+window.__eldaKinkTest.fill()
+
+// Utiliser une autre répartition reproductible grâce à une graine numérique
+window.__eldaKinkTest.fill(12345)
+
+// Remplir la liste et ajouter également un profil personnel fictif
+window.__eldaKinkTest.fill(12345, true)
+
+// Restaurer la liste présente avant le lancement du test
+window.__eldaKinkTest.restore()
+```
+
+La première exécution de `fill()` sauvegarde automatiquement les sélections, rôles et informations personnelles actuels dans le stockage local. Les exécutions suivantes conservent cette sauvegarde d'origine. `restore()` restaure les données sauvegardées puis supprime la sauvegarde de test.
+
+La commande utilise par défaut une graine fixe afin de produire une répartition stable des six statuts et des quatre états de rôle : Donne, Reçoit, les deux ou aucun.
+
 ## 🎨 Accessibilité
 
 Le site respecte les standards WCAG 2.1 :
