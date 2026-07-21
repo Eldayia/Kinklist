@@ -44,7 +44,15 @@ Chaque forme utilise également une couleur pour un double encodage, mais les fo
 ## 🚀 Utilisation
 
 ### Option 1 : Utilisation locale (sans Docker)
-Ouvrez simplement `index.html` dans votre navigateur web.
+
+Installez les dépendances et lancez le serveur local :
+
+```bash
+npm install
+npm start
+```
+
+Ouvrez ensuite `http://localhost:3000`. Le serveur est nécessaire pour créer et relire les liens courts. Si `index.html` est ouvert directement en `file://`, l'application tentera de joindre ce même serveur local et affichera une instruction explicite s'il n'est pas démarré.
 
 ### Option 2 : Déploiement avec Docker 🐳
 
@@ -156,7 +164,7 @@ Le backend expose les endpoints suivants :
 3. Partagez ce lien avec d'autres personnes
 4. Ils verront vos sélections et rôles, et pourront choisir de les importer
 
-**Note** : Les liens sont ultra-compacts grâce à la compression gzip (format v2). Les rôles (Donne/Reçois) sont inclus dans le lien !
+Le lien reprend automatiquement le domaine actuellement utilisé : par exemple `http://localhost:3000/#s/abc123` en local ou `https://kink.eldayia.fr/#s/abc123` en production. Aucun lien long de secours n'est généré si l'API est indisponible. Les rôles (Donne/Reçois) sont inclus dans les données partagées.
 
 ### Exporter en image
 1. Cliquez sur "Exporter (Image)"

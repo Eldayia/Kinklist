@@ -12,6 +12,28 @@ const STORAGE_KEY = 'kinklist-selections';
 const USER_INFO_KEY = 'kinklist-user-info';
 const ROLES_KEY = 'kinklist-roles';
 const DEV_BACKUP_KEY = 'kinklist-dev-test-backup';
+const LOCAL_APP_ORIGIN = 'http://localhost:3000';
+
+function getCurrentAppOrigin() {
+    // Une page file:// n'a pas d'origine HTTP et ne peut pas appeler /api.
+    // Dans ce cas, utiliser le serveur Node local prévu par `npm start`.
+    if (window.location.protocol === 'file:') return LOCAL_APP_ORIGIN;
+    return window.location.origin;
+}
+
+function getApiUrl(path) {
+    return `${getCurrentAppOrigin()}${path}`;
+}
+
+function buildShortShareUrl(id) {
+    return `${getCurrentAppOrigin()}/#s/${id}`;
+}
+
+function clearShareHash() {
+    if (!window.location.hash) return;
+    const cleanUrl = window.location.href.split('#')[0];
+    window.history.replaceState(null, document.title, cleanUrl);
+}
 
 // Status types
 const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
@@ -454,6 +476,8 @@ function updateCategoryCount(categoryElement) {
 
 // Setup event listeners
 function setupEventListeners() {
+    window.addEventListener('hashchange', handleShareHashChange);
+
     // User info fields
     const userNameInput = document.getElementById('user-name');
     const userGenderInput = document.getElementById('user-gender');
@@ -571,7 +595,7 @@ async function exportKinklistAsImage() {
                 roles: kinkRoles
             };
 
-            const response = await fetch('/api/share', {
+            const response = await fetch(getApiUrl('/api/share'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1035,7 +1059,7 @@ async function exportKinklistAsReadableImage() {
 
         let shareId = null;
         try {
-            const response = await fetch('/api/share', {
+            const response = await fetch(getApiUrl('/api/share'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1507,6 +1531,11 @@ async function exportKinklistAsReadableImage() {
     }
 }
 
+async function handleShareHashChange() {
+    const sharedDataLoaded = await loadSharedData();
+    if (sharedDataLoaded) applyFilters();
+}
+
 // Helper function to draw rounded rectangles
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
     ctx.beginPath();
@@ -1799,7 +1828,7 @@ function shareSiteLink() {
     });
 }
 
-// Generate share link (avec API backend et fallback)
+// Generate a short share link through the backend (no oversized URL fallback)
 async function generateShareLink() {
     if (Object.keys(kinkSelections).length === 0) {
         alert('Vous n\'avez aucune sélection à partager. Sélectionnez des kinks avant de partager.');
@@ -1815,7 +1844,7 @@ async function generateShareLink() {
         };
 
         // Tentative d'appel à l'API backend pour créer un lien court
-        const response = await fetch('/api/share', {
+        const response = await fetch(getApiUrl('/api/share'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1827,7 +1856,11 @@ async function generateShareLink() {
             throw new Error(`Erreur API: ${response.status}`);
         }
 
-        const { url } = await response.json();
+        const { id } = await response.json();
+        if (!id || !/^[a-zA-Z0-9]{6}$/.test(id)) {
+            throw new Error('Réponse API invalide : identifiant court manquant');
+        }
+        const url = buildShortShareUrl(id);
 
         // Copy to clipboard
         navigator.clipboard.writeText(url).then(() => {
@@ -1837,25 +1870,15 @@ async function generateShareLink() {
             prompt('Copiez ce lien pour partager votre kinklist :', url);
         });
     } catch (error) {
-        console.warn('API backend non disponible, utilisation du format legacy:', error);
-
-        // Fallback vers l'ancien système compressé si l'API n'est pas disponible
-        try {
-            const encoded = compressAndEncode(kinkSelections);
-            const url = new URL(window.location.href);
-            url.hash = `share=${encoded}`;
-
-            // Copy to clipboard
-            navigator.clipboard.writeText(url.toString()).then(() => {
-                alert('Lien de partage copié dans le presse-papier !\n\nNote : Lien au format legacy (backend non disponible).\n\nPartagez ce lien pour que d\'autres puissent voir votre kinklist.');
-            }).catch(() => {
-                // Fallback: show the link in a prompt
-                prompt('Copiez ce lien pour partager votre kinklist :', url.toString());
-            });
-        } catch (fallbackError) {
-            console.error('Erreur lors du fallback:', fallbackError);
-            alert('Erreur : Impossible de générer le lien de partage.\n\n' + fallbackError.message);
-        }
+        console.error('API de liens courts indisponible:', error);
+        const localInstructions = window.location.protocol === 'file:'
+            ? '\n\nLa page est ouverte directement depuis un fichier. Lancez `npm start`, puis ouvrez http://localhost:3000 et réessayez.'
+            : '';
+        alert(
+            'Impossible de créer le lien court sur le domaine actuel.'
+            + localInstructions
+            + '\n\nAucun lien long n\'a été généré.'
+        );
     }
 }
 
@@ -1869,7 +1892,7 @@ async function loadSharedData() {
 
         if (id.length === 6) {
             try {
-                const response = await fetch(`/api/share/${id}`);
+                const response = await fetch(getApiUrl(`/api/share/${id}`));
 
                 if (!response.ok) {
                     throw new Error(`Lien non trouvé (${response.status})`);
@@ -1884,14 +1907,18 @@ async function loadSharedData() {
                     // Ancien format (rétrocompatibilité)
                     await handleSharedData(sharedData);
                 }
+                clearShareHash();
+                return true;
             } catch (error) {
                 console.error('Erreur chargement lien court:', error);
                 alert('Erreur : Le lien de partage est invalide ou a expiré.');
-                window.location.hash = '';
+                clearShareHash();
+                return false;
             }
         } else {
             alert('Format de lien invalide.');
-            window.location.hash = '';
+            clearShareHash();
+            return false;
         }
     }
     // Format legacy : #share=v2_...
@@ -1901,11 +1928,16 @@ async function loadSharedData() {
 
         if (decoded) {
             await handleSharedData(decoded.selections, null, decoded.roles);
+            clearShareHash();
+            return true;
         } else {
             alert('Le lien de partage est invalide ou corrompu.');
-            window.location.hash = '';
+            clearShareHash();
+            return false;
         }
     }
+
+    return false;
 }
 
 // Helper function to handle shared data import
@@ -1932,7 +1964,6 @@ async function handleSharedData(sharedSelections, sharedUserInfo = null, sharedR
                 populateUserInfoFields();
             }
             saveToLocalStorage();
-            window.location.hash = '';
             alert('Kinklist importée avec succès !');
         } else {
             // Just display without saving
@@ -1966,7 +1997,6 @@ async function handleSharedData(sharedSelections, sharedUserInfo = null, sharedR
                 populateUserInfoFields();
             }
             saveToLocalStorage();
-            window.location.hash = '';
             alert('Kinklist importée avec succès !');
         } else {
             // Just display without saving
