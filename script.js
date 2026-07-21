@@ -196,6 +196,13 @@ function createKinkElement(kink, kinkId) {
     const nameSpan = document.createElement('span');
     nameSpan.className = 'kink-name';
     nameSpan.textContent = kink;
+    const category = kinkId.split('::')[0];
+    const definition = typeof getKinkDefinition === 'function'
+        ? getKinkDefinition(kink, category)
+        : `Définition de ${kink}.`;
+    nameSpan.setAttribute('data-definition', definition);
+    nameSpan.setAttribute('aria-label', `${kink}. ${definition}`);
+    nameSpan.setAttribute('tabindex', '0');
 
     // Status icons
     const statusDiv = document.createElement('div');
