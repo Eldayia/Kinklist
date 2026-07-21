@@ -193,6 +193,9 @@ function createKinkElement(kink, kinkId) {
     }
 
     // Kink name
+    const nameWrapper = document.createElement('span');
+    nameWrapper.className = 'kink-name-wrapper';
+
     const nameSpan = document.createElement('span');
     nameSpan.className = 'kink-name';
     nameSpan.textContent = kink;
@@ -200,9 +203,10 @@ function createKinkElement(kink, kinkId) {
     const definition = typeof getKinkDefinition === 'function'
         ? getKinkDefinition(kink, category)
         : `Définition de ${kink}.`;
-    nameSpan.setAttribute('data-definition', definition);
-    nameSpan.setAttribute('aria-label', `${kink}. ${definition}`);
-    nameSpan.setAttribute('tabindex', '0');
+    nameWrapper.setAttribute('data-definition', definition);
+    nameWrapper.setAttribute('aria-label', `${kink}. ${definition}`);
+    nameWrapper.setAttribute('tabindex', '0');
+    nameWrapper.appendChild(nameSpan);
 
     // Status icons
     const statusDiv = document.createElement('div');
@@ -273,7 +277,7 @@ function createKinkElement(kink, kinkId) {
     roleDiv.appendChild(donneBtn);
     roleDiv.appendChild(recoisBtn);
 
-    kinkDiv.appendChild(nameSpan);
+    kinkDiv.appendChild(nameWrapper);
     kinkDiv.appendChild(statusDiv);
     kinkDiv.appendChild(roleDiv);
 

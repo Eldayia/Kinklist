@@ -195,10 +195,12 @@ header h1 {
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    justify-content: center;
     gap: 1.5rem;
+    width: 100%;
+    box-sizing: border-box;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -215,17 +217,24 @@ header h1 {
 }
 
 .legend {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 0.75rem;
     align-items: center;
+    width: 100%;
+    min-width: 0;
 }
 
 .legend-item {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.875rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 56px;
+    padding: 0.5rem 0.625rem;
+    box-sizing: border-box;
     border-radius: var(--radius-sm);
     font-size: 0.875rem;
     font-weight: 500;
@@ -244,17 +253,19 @@ header h1 {
 .legend .legend-item:nth-child(4) { background: var(--maybe-bg); color: var(--maybe); }
 .legend .legend-item:nth-child(5) { background: var(--no-bg); color: var(--no); }
 .legend .legend-item:nth-child(6) { background: var(--limit-bg); color: var(--limit); }
+.legend .legend-item:nth-child(8) { background: var(--donne-bg); color: var(--donne); }
+.legend .legend-item:nth-child(9) { background: var(--recois-bg); color: var(--recois); }
 
 .icon-label {
     font-weight: 500;
     font-size: 0.875rem;
+    line-height: 1.25;
+    text-align: center;
+    overflow-wrap: anywhere;
 }
 
 .legend-separator {
-    width: 1px;
-    height: 24px;
-    background: var(--border);
-    flex-shrink: 0;
+    display: none;
 }
 
 .legend-role-arrow {
@@ -512,20 +523,28 @@ header h1 {
 
 .kinks-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 0.75rem;
     padding: 1rem;
+    align-items: stretch;
 }
 
 .kink-item {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "name name"
+        "status role";
     align-items: center;
-    justify-content: space-between;
+    column-gap: 0.75rem;
+    row-gap: 0.7rem;
+    min-width: 0;
+    min-height: 104px;
     padding: 0.875rem 1rem;
     background: var(--bg-primary);
     border-radius: var(--radius-sm);
     transition: var(--transition);
-    cursor: pointer;
+    cursor: default;
 }
 
 .kink-item:hover {
@@ -538,17 +557,29 @@ header h1 {
     margin: -0.5px;
 }
 
-.kink-name {
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    flex: 1;
+.kink-name-wrapper {
+    grid-area: name;
+    min-width: 0;
     position: relative;
     cursor: help;
+}
+
+.kink-name {
+    display: -webkit-box;
+    min-height: 2.7em;
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     text-decoration: underline dotted color-mix(in srgb, var(--text-muted) 65%, transparent);
     text-underline-offset: 0.2rem;
 }
 
-.kink-name::after {
+.kink-name-wrapper::after {
     content: attr(data-definition);
     position: absolute;
     z-index: 100;
@@ -572,7 +603,7 @@ header h1 {
     transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
 }
 
-.kink-name::before {
+.kink-name-wrapper::before {
     content: "";
     position: absolute;
     z-index: 101;
@@ -586,18 +617,22 @@ header h1 {
     transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-.kink-name:hover::after,
-.kink-name:hover::before,
-.kink-name:focus-visible::after,
-.kink-name:focus-visible::before {
+.kink-name-wrapper:hover::after,
+.kink-name-wrapper:hover::before,
+.kink-name-wrapper:focus-visible::after,
+.kink-name-wrapper:focus-visible::before {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
 }
 
 .kink-status {
+    grid-area: status;
     display: flex;
     gap: 0.25rem;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
     flex-shrink: 0;
 }
 
@@ -687,11 +722,12 @@ header h1 {
 
 /* Donne/Reçois role toggle buttons */
 .kink-role {
+    grid-area: role;
     display: flex;
     gap: 0.2rem;
     flex-shrink: 0;
-    margin-left: 0.5rem;
-    padding-left: 0.5rem;
+    margin-left: 0;
+    padding-left: 0.75rem;
     border-left: 1px solid var(--border);
 }
 
@@ -802,6 +838,21 @@ footer a:focus {
 }
 
 /* Responsive */
+@media (max-width: 1100px) {
+    .legend-section {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .legend-section h2 {
+        text-align: center;
+    }
+
+    .legend {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 0 1rem;
@@ -834,17 +885,14 @@ footer a:focus {
     }
 
     .legend-section {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         gap: 1rem;
+        padding: 1rem;
     }
 
     .legend {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    .legend-item {
-        flex: 0 1 auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.625rem;
     }
 
     .controls {
@@ -865,6 +913,41 @@ footer a:focus {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .legend-section {
+        padding: 0.875rem;
+    }
+
+    .legend-item {
+        min-height: 52px;
+        gap: 0.375rem;
+        padding: 0.45rem;
+    }
+
+    .legend-role-arrow {
+        transform: scale(0.9);
+    }
+
+    .kinks-grid {
+        gap: 0.625rem;
+        padding: 0.75rem;
+    }
+
+    .kink-item {
+        column-gap: 0.4rem;
+        padding: 0.75rem;
+    }
+
+    .kink-status {
+        gap: 0;
+    }
+
+    .kink-role {
+        gap: 0;
+        padding-left: 0.4rem;
     }
 }
 
