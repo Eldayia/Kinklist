@@ -518,7 +518,7 @@ function setupEventListeners() {
 
     // Export button (Image)
     const exportImageBtn = document.getElementById('export-image-btn');
-    exportImageBtn.addEventListener('click', exportKinklistAsImage);
+    exportImageBtn.addEventListener('click', exportKinklistAsReadableImage);
 
     // Reset button
     const resetBtn = document.getElementById('reset-btn');
@@ -1018,6 +1018,437 @@ async function exportKinklistAsImage() {
         if (!blob) throw new Error('Capture html2canvas impossible');
         downloadBlob(`kinklist-${new Date().toISOString().split('T')[0]}.png`, blob);
         alert('Votre kinklist a été exportée en image (mode capture) !');
+    }
+}
+
+async function exportKinklistAsReadableImage() {
+    const exportBtn = document.getElementById('export-image-btn');
+    const originalText = exportBtn.textContent;
+    exportBtn.textContent = 'Génération en cours...';
+    exportBtn.disabled = true;
+
+    try {
+        if (Object.keys(kinkSelections).length === 0) {
+            alert('Vous n\'avez aucune sélection à exporter. Sélectionnez des kinks avant d\'exporter en image.');
+            return;
+        }
+
+        let shareId = null;
+        try {
+            const response = await fetch('/api/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    data: { selections: kinkSelections, userInfo, roles: kinkRoles }
+                })
+            });
+            if (response.ok) {
+                const payload = await response.json();
+                shareId = payload.id || null;
+            }
+        } catch (error) {
+            console.warn('Impossible de générer un ID de partage pour l\'export:', error);
+        }
+
+        const groupedSelections = {};
+        Object.entries(kinkSelections).forEach(([kinkId, status]) => {
+            const separatorIndex = kinkId.indexOf('::');
+            if (separatorIndex === -1) return;
+            const category = kinkId.slice(0, separatorIndex);
+            const kink = kinkId.slice(separatorIndex + 2);
+            if (!groupedSelections[category]) groupedSelections[category] = [];
+            groupedSelections[category].push({
+                kink,
+                status,
+                role: kinkRoles[kinkId] || null
+            });
+        });
+
+        const config = {
+            width: 0,
+            maxCanvasHeight: 16300,
+            padding: 48,
+            headerHeight: 112,
+            legendHeight: 92,
+            footerHeight: 72,
+            categoryWidth: 690,
+            categoryGap: 24,
+            rowGap: 24,
+            itemGap: 7,
+            itemMinHeight: 60,
+            itemLineHeight: 29,
+            categoryTitleLineHeight: 31,
+            colors: {
+                love: '#ef4444', like: '#fdba74', curious: '#3b82f6',
+                maybe: '#06b6d4', no: '#525252', limit: '#000000',
+                donne: '#10b981', recois: '#8b5cf6'
+            },
+            labels: {
+                love: "J'adore", like: "J'aime", curious: 'Curieux/se',
+                maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit',
+                donne: 'Donne', recois: 'Reçoit'
+            }
+        };
+
+        const measureCanvas = document.createElement('canvas');
+        const measureCtx = measureCanvas.getContext('2d');
+
+        function wrapText(ctx, text, maxWidth) {
+            const paragraphs = String(text).split(/\n/);
+            const lines = [];
+
+            paragraphs.forEach(paragraph => {
+                const words = paragraph.split(/\s+/).filter(Boolean);
+                let currentLine = '';
+
+                words.forEach(word => {
+                    if (ctx.measureText(word).width > maxWidth) {
+                        if (currentLine) {
+                            lines.push(currentLine);
+                            currentLine = '';
+                        }
+                        let fragment = '';
+                        [...word].forEach(character => {
+                            const candidate = fragment + character;
+                            if (fragment && ctx.measureText(candidate).width > maxWidth) {
+                                lines.push(fragment);
+                                fragment = character;
+                            } else {
+                                fragment = candidate;
+                            }
+                        });
+                        currentLine = fragment;
+                        return;
+                    }
+
+                    const candidate = currentLine ? `${currentLine} ${word}` : word;
+                    if (currentLine && ctx.measureText(candidate).width > maxWidth) {
+                        lines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        currentLine = candidate;
+                    }
+                });
+
+                if (currentLine) lines.push(currentLine);
+                if (words.length === 0) lines.push('');
+            });
+
+            return lines.length ? lines : [''];
+        }
+
+        const infoText = [
+            userInfo.name && `Nom : ${userInfo.name}`,
+            userInfo.gender && `Genre : ${userInfo.gender}`,
+            userInfo.sexuality && `Sexualité : ${userInfo.sexuality}`,
+            userInfo.preference && `Préférence : ${userInfo.preference}`
+        ].filter(Boolean).join('  •  ');
+
+        function measureCategory(category, items, categoryWidth) {
+            measureCtx.font = '600 29px Fraunces, serif';
+            const titleLines = wrapText(measureCtx, category, categoryWidth - 44);
+            const headerHeight = Math.max(66, titleLines.length * config.categoryTitleLineHeight + 26);
+            const itemLayouts = items.map(item => {
+                measureCtx.font = '600 25px "DM Sans", sans-serif';
+                const roleWidth = item.role ? 68 : 20;
+                const textWidth = categoryWidth - 32 - 54 - roleWidth;
+                const lines = wrapText(measureCtx, item.kink, textWidth);
+                const height = Math.max(
+                    config.itemMinHeight,
+                    lines.length * config.itemLineHeight + 22
+                );
+                return { ...item, lines, height, textWidth };
+            });
+            const itemsHeight = itemLayouts.reduce((sum, item) => sum + item.height, 0)
+                + Math.max(0, itemLayouts.length - 1) * config.itemGap;
+            return {
+                category,
+                titleLines,
+                headerHeight,
+                items: itemLayouts,
+                height: headerHeight + 16 + itemsHeight + 16
+            };
+        }
+
+        function partitionInBalancedColumns(layouts, columnCount) {
+            const count = layouts.length;
+            const columnsToUse = Math.min(columnCount, count);
+            const prefix = [0];
+            layouts.forEach(layout => {
+                prefix.push(prefix[prefix.length - 1] + layout.height + config.rowGap);
+            });
+
+            const costs = Array.from({ length: count + 1 }, () =>
+                Array(columnsToUse + 1).fill(Infinity)
+            );
+            const cuts = Array.from({ length: count + 1 }, () =>
+                Array(columnsToUse + 1).fill(0)
+            );
+            costs[0][0] = 0;
+
+            for (let itemCount = 1; itemCount <= count; itemCount++) {
+                for (let columns = 1; columns <= Math.min(columnsToUse, itemCount); columns++) {
+                    for (let cut = columns - 1; cut < itemCount; cut++) {
+                        const currentColumnHeight = prefix[itemCount] - prefix[cut] - config.rowGap;
+                        const cost = Math.max(costs[cut][columns - 1], currentColumnHeight);
+                        if (cost < costs[itemCount][columns]) {
+                            costs[itemCount][columns] = cost;
+                            cuts[itemCount][columns] = cut;
+                        }
+                    }
+                }
+            }
+
+            const columns = [];
+            let itemCount = count;
+            let remainingColumns = columnsToUse;
+            while (remainingColumns > 0) {
+                const cut = cuts[itemCount][remainingColumns];
+                columns.unshift(layouts.slice(cut, itemCount));
+                itemCount = cut;
+                remainingColumns--;
+            }
+            return columns;
+        }
+
+        const categoryEntries = Object.entries(groupedSelections);
+        let columnCount = categoryEntries.length <= 6 ? 2
+            : categoryEntries.length <= 12 ? 3
+                : categoryEntries.length <= 20 ? 4 : 5;
+        columnCount = Math.min(columnCount, Math.max(2, categoryEntries.length));
+
+        let categoryLayouts;
+        let columns;
+        let innerWidth;
+        let infoLines;
+        let userInfoHeight;
+        let fixedTopHeight;
+        let fixedBottomHeight;
+        let contentHeight;
+        let imageHeight;
+
+        while (true) {
+            config.width = config.padding * 2
+                + columnCount * config.categoryWidth
+                + (columnCount - 1) * config.categoryGap;
+            innerWidth = config.width - config.padding * 2;
+            categoryLayouts = categoryEntries
+                .map(([category, items]) => measureCategory(category, items, config.categoryWidth));
+            columns = partitionInBalancedColumns(categoryLayouts, columnCount);
+            contentHeight = Math.max(...columns.map(column =>
+                column.reduce((height, layout, index) =>
+                    height + layout.height + (index ? config.rowGap : 0), 0)
+            ));
+
+            measureCtx.font = '600 27px "DM Sans", sans-serif';
+            infoLines = infoText ? wrapText(measureCtx, infoText, innerWidth - 60) : [];
+            userInfoHeight = infoLines.length ? Math.max(82, infoLines.length * 34 + 32) : 0;
+            fixedTopHeight = config.padding + config.headerHeight + 18
+                + (userInfoHeight ? userInfoHeight + 18 : 0)
+                + config.legendHeight + 24;
+            fixedBottomHeight = config.footerHeight + config.padding;
+            imageHeight = fixedTopHeight + contentHeight + fixedBottomHeight;
+
+            if (imageHeight <= config.maxCanvasHeight || columnCount >= 8
+                || columnCount >= categoryEntries.length) {
+                break;
+            }
+            columnCount++;
+        }
+
+        function drawHeader(ctx, y) {
+            const gradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
+            gradient.addColorStop(0, '#a855f7');
+            gradient.addColorStop(1, '#ec4899');
+            ctx.fillStyle = gradient;
+            roundRect(ctx, config.padding, y, innerWidth, config.headerHeight, 12, true, false);
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            ctx.font = '700 48px Fraunces, serif';
+            ctx.fillText('Ma Kinklist', config.width / 2, y + 50);
+            ctx.font = '400 24px "DM Sans", sans-serif';
+            ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 84);
+            return y + config.headerHeight + 18;
+        }
+
+        function drawUserInfo(ctx, y) {
+            if (!userInfoHeight) return y;
+            ctx.fillStyle = '#ffffff';
+            roundRect(ctx, config.padding, y, innerWidth, userInfoHeight, 12, true, false);
+            ctx.strokeStyle = '#e7e5e4';
+            ctx.lineWidth = 1;
+            roundRect(ctx, config.padding, y, innerWidth, userInfoHeight, 12, false, true);
+            ctx.fillStyle = '#1c1917';
+            ctx.font = '600 27px "DM Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const firstLineY = y + userInfoHeight / 2 - ((infoLines.length - 1) * 34) / 2;
+            infoLines.forEach((line, index) => {
+                ctx.fillText(line, config.width / 2, firstLineY + index * 34);
+            });
+            return y + userInfoHeight + 18;
+        }
+
+        function drawLegend(ctx, y) {
+            ctx.fillStyle = '#ffffff';
+            roundRect(ctx, config.padding, y, innerWidth, config.legendHeight, 12, true, false);
+            ctx.strokeStyle = '#e7e5e4';
+            roundRect(ctx, config.padding, y, innerWidth, config.legendHeight, 12, false, true);
+            const entries = ['love', 'like', 'curious', 'maybe', 'no', 'limit', 'donne', 'recois'];
+            const backgrounds = {
+                love: '#fee2e2', like: '#ffedd5', curious: '#dbeafe', maybe: '#cffafe',
+                no: '#e5e5e5', limit: '#f5f5f5', donne: '#d1fae5', recois: '#ede9fe'
+            };
+            const gap = 10;
+            const pillWidth = (innerWidth - 40 - gap * (entries.length - 1)) / entries.length;
+            let x = config.padding + 20;
+            const centerY = y + config.legendHeight / 2;
+            entries.forEach(entry => {
+                ctx.fillStyle = backgrounds[entry];
+                roundRect(ctx, x, centerY - 25, pillWidth, 50, 8, true, false);
+                if (entry === 'donne' || entry === 'recois') {
+                    ctx.fillStyle = config.colors[entry];
+                    ctx.font = '700 23px "DM Sans", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(entry === 'donne' ? '→' : '←', x + 24, centerY);
+                } else {
+                    drawStatusIcon(ctx, entry, x + 24, centerY, config.colors, 1.35);
+                }
+                ctx.fillStyle = config.colors[entry];
+                ctx.font = '600 19px "DM Sans", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(config.labels[entry], x + 48, centerY);
+                x += pillWidth + gap;
+            });
+            return y + config.legendHeight + 24;
+        }
+
+        function drawCategory(ctx, layout, x, y) {
+            ctx.fillStyle = '#ffffff';
+            roundRect(ctx, x, y, config.categoryWidth, layout.height, 12, true, false);
+            ctx.strokeStyle = '#e7e5e4';
+            ctx.lineWidth = 1;
+            roundRect(ctx, x, y, config.categoryWidth, layout.height, 12, false, true);
+
+            ctx.fillStyle = '#f5f5f4';
+            roundRect(ctx, x, y, config.categoryWidth, layout.headerHeight, 12, true, false);
+            ctx.fillStyle = '#1c1917';
+            ctx.font = '600 29px Fraunces, serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            const titleStartY = y + layout.headerHeight / 2
+                - ((layout.titleLines.length - 1) * config.categoryTitleLineHeight) / 2;
+            layout.titleLines.forEach((line, index) => {
+                ctx.fillText(line, x + 22, titleStartY + index * config.categoryTitleLineHeight);
+            });
+
+            let itemY = y + layout.headerHeight + 16;
+            layout.items.forEach(item => {
+                ctx.fillStyle = '#fafaf9';
+                roundRect(ctx, x + 16, itemY, config.categoryWidth - 32, item.height, 8, true, false);
+                const centerY = itemY + item.height / 2;
+                drawStatusIcon(ctx, item.status, x + 40, centerY, config.colors, 1.5);
+
+                ctx.fillStyle = '#1c1917';
+                ctx.font = '600 25px "DM Sans", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                const textStartY = centerY - ((item.lines.length - 1) * config.itemLineHeight) / 2;
+                item.lines.forEach((line, index) => {
+                    ctx.fillText(line, x + 70, textStartY + index * config.itemLineHeight);
+                });
+
+                if (item.role) {
+                    const roleX = x + config.categoryWidth - 48;
+                    ctx.font = '700 23px "DM Sans", sans-serif';
+                    ctx.textAlign = 'center';
+                    if (item.role === 'gives' || item.role === 'both') {
+                        ctx.fillStyle = config.colors.donne;
+                        ctx.fillText('→', roleX - (item.role === 'both' ? 12 : 0), centerY);
+                    }
+                    if (item.role === 'receives' || item.role === 'both') {
+                        ctx.fillStyle = config.colors.recois;
+                        ctx.fillText('←', roleX + (item.role === 'both' ? 12 : 0), centerY);
+                    }
+                }
+                itemY += item.height + config.itemGap;
+            });
+        }
+
+        function drawFooter(ctx, y) {
+            ctx.fillStyle = '#ffffff';
+            roundRect(ctx, config.padding, y, innerWidth, config.footerHeight, 12, true, false);
+            ctx.strokeStyle = '#e7e5e4';
+            roundRect(ctx, config.padding, y, innerWidth, config.footerHeight, 12, false, true);
+            ctx.fillStyle = '#78716c';
+            ctx.font = '500 22px "DM Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Développé par Eldayia · x.com/eldayia', config.width / 2, y + config.footerHeight / 2);
+            ctx.textAlign = 'right';
+            const reference = shareId ? `#s/${shareId}` : '';
+            ctx.fillText(reference, config.width - config.padding - 24, y + config.footerHeight / 2);
+        }
+
+        async function canvasToJpegBlob(canvas) {
+            return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        }
+
+        function downloadExportBlob(filename, blob) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        const date = new Date().toISOString().split('T')[0];
+        const canvas = document.createElement('canvas');
+        canvas.width = config.width;
+        canvas.height = imageHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.fillStyle = '#fafaf9';
+        ctx.fillRect(0, 0, config.width, imageHeight);
+
+        let contentY = config.padding;
+        contentY = drawHeader(ctx, contentY);
+        contentY = drawUserInfo(ctx, contentY);
+        contentY = drawLegend(ctx, contentY);
+
+        columns.forEach((column, columnIndex) => {
+            const x = config.padding + columnIndex * (config.categoryWidth + config.categoryGap);
+            let categoryY = contentY;
+            column.forEach((category, categoryIndex) => {
+                drawCategory(ctx, category, x, categoryY);
+                categoryY += category.height;
+                if (categoryIndex < column.length - 1) categoryY += config.rowGap;
+            });
+        });
+
+        drawFooter(ctx, contentY + contentHeight);
+        const blob = await canvasToJpegBlob(canvas);
+        if (!blob) throw new Error('Impossible de créer l\'image');
+        downloadExportBlob(`kinklist-${date}.jpg`, blob);
+
+        const shareMessage = shareId
+            ? ` L'identifiant de partage #s/${shareId} est présent dans le pied de page.`
+            : '';
+        alert(`Votre kinklist a été exportée en une seule image lisible.${shareMessage}`);
+    } catch (error) {
+        console.error('Erreur export image lisible:', error);
+        alert('Échec de l\'exportation en image. Ouvrez la console pour plus de détails.');
+    } finally {
+        exportBtn.textContent = originalText;
+        exportBtn.disabled = false;
     }
 }
 

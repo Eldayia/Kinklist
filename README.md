@@ -35,7 +35,7 @@ Chaque forme utilise également une couleur pour un double encodage, mais les fo
   - Par statut de sélection
   - Combinaison des filtres
 - **Partage par lien** : Générez un lien court optimisé pour partager vos sélections et rôles (compression gzip)
-- **Export en image** : Exportez votre kinklist en image haute qualité avec indicateurs de rôle (→ ←)
+- **Export en image** : Exportez toute votre kinklist dans une seule image haute qualité, avec libellés complets et indicateurs de rôle (→ ←)
 - **Bouton de partage du site** : Copiez facilement le lien du site depuis le header
 - **Sauvegarde automatique** : Vos sélections et rôles sont enregistrés dans le navigateur
 - **Compteurs** : Visualisez le nombre de sélections par catégorie
@@ -160,7 +160,7 @@ Le backend expose les endpoints suivants :
 
 ### Exporter en image
 1. Cliquez sur "Exporter (Image)"
-2. Une image haute qualité sera téléchargée
+2. Une image JPEG unique sera téléchargée. Le nombre de colonnes s'adapte au contenu et les noms longs reviennent à la ligne sans être tronqués
 3. Format optimisé pour Discord, Twitter et autres réseaux sociaux
 4. Mise en page professionnelle avec catégories en colonnes
 5. Les indicateurs de rôle (→ ←) sont inclus à côté de chaque kink
