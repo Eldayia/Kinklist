@@ -7,6 +7,7 @@ let userInfo = {
     preference: ''
 };
 let kinkRoles = {};
+let expandedCategories = new Set();
 const STORAGE_KEY = 'kinklist-selections';
 const USER_INFO_KEY = 'kinklist-user-info';
 const ROLES_KEY = 'kinklist-roles';
@@ -105,7 +106,7 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
     const container = document.getElementById('kinklist-container');
     container.innerHTML = '';
 
-    Object.entries(kinksData).forEach(([category, kinks]) => {
+    Object.entries(kinksData).forEach(([category, kinks], categoryIndex) => {
         // Filter by category
         if (filterCategory !== 'all' && category !== filterCategory) {
             return;
@@ -135,14 +136,23 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
         const categoryDiv = document.createElement('div');
         categoryDiv.className = 'category';
         categoryDiv.setAttribute('data-category', category);
+        const isExpanded = expandedCategories.has(category);
+        categoryDiv.classList.toggle('expanded', isExpanded);
 
         // Category header
         const headerDiv = document.createElement('div');
         headerDiv.className = 'category-header';
 
-        const titleH3 = document.createElement('h3');
-        titleH3.className = 'category-title';
-        titleH3.textContent = category;
+        const gridId = `category-panel-${categoryIndex}`;
+        const toggleButton = document.createElement('button');
+        toggleButton.type = 'button';
+        toggleButton.className = 'category-toggle';
+        toggleButton.setAttribute('aria-expanded', String(isExpanded));
+        toggleButton.setAttribute('aria-controls', gridId);
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'category-title';
+        titleSpan.textContent = category;
 
         const countSpan = document.createElement('span');
         countSpan.className = 'category-count';
@@ -152,12 +162,35 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
         }).length;
         countSpan.textContent = `${selectedCount}/${filteredKinks.length} sélectionnés`;
 
-        headerDiv.appendChild(titleH3);
-        headerDiv.appendChild(countSpan);
+        const headerMeta = document.createElement('span');
+        headerMeta.className = 'category-header-meta';
+
+        const chevron = document.createElement('span');
+        chevron.className = 'category-chevron';
+        chevron.setAttribute('aria-hidden', 'true');
+        chevron.textContent = '⌄';
+
+        headerMeta.appendChild(countSpan);
+        headerMeta.appendChild(chevron);
+        toggleButton.appendChild(titleSpan);
+        toggleButton.appendChild(headerMeta);
+        headerDiv.appendChild(toggleButton);
 
         // Kinks grid
         const gridDiv = document.createElement('div');
         gridDiv.className = 'kinks-grid';
+        gridDiv.id = gridId;
+        gridDiv.hidden = !isExpanded;
+
+        toggleButton.addEventListener('click', () => {
+            const shouldExpand = !expandedCategories.has(category);
+            if (shouldExpand) {
+                expandedCategories.add(category);
+            } else {
+                expandedCategories.delete(category);
+            }
+            updateCategoryExpansion(categoryDiv, shouldExpand);
+        });
 
         filteredKinks.forEach(kink => {
             const kinkId = `${category}::${kink}`;
@@ -179,6 +212,26 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
         noResults.innerHTML = '<h3>Aucun résultat trouvé</h3><p>Essayez de modifier vos filtres</p>';
         container.appendChild(noResults);
     }
+}
+
+function updateCategoryExpansion(categoryElement, expanded) {
+    const toggle = categoryElement.querySelector('.category-toggle');
+    const panel = categoryElement.querySelector('.kinks-grid');
+
+    categoryElement.classList.toggle('expanded', expanded);
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', String(expanded));
+    }
+    if (panel) {
+        panel.hidden = !expanded;
+    }
+}
+
+function setAllCategoriesExpanded(expanded) {
+    expandedCategories = expanded ? new Set(Object.keys(kinksData)) : new Set();
+    document.querySelectorAll('.category').forEach(categoryElement => {
+        updateCategoryExpansion(categoryElement, expanded);
+    });
 }
 
 // Create a kink element
@@ -442,6 +495,14 @@ function setupEventListeners() {
     const statusFilter = document.getElementById('status-filter');
     statusFilter.addEventListener('change', () => {
         applyFilters();
+    });
+
+    document.getElementById('expand-all-btn').addEventListener('click', () => {
+        setAllCategoriesExpanded(true);
+    });
+
+    document.getElementById('collapse-all-btn').addEventListener('click', () => {
+        setAllCategoriesExpanded(false);
     });
 
     // Share button
