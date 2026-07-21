@@ -160,7 +160,7 @@ Le backend expose les endpoints suivants :
 
 ### Exporter en image
 1. Cliquez sur "Exporter (Image)"
-2. Une image JPEG unique sera téléchargée. Le nombre de colonnes s'adapte au contenu et les noms longs reviennent à la ligne sans être tronqués
+2. Une image JPEG unique de moins de 5 Mo sera téléchargée. Le nombre de colonnes s'adapte au contenu et les noms longs reviennent à la ligne sans être tronqués
 3. Format optimisé pour Discord, Twitter et autres réseaux sociaux
 4. Mise en page professionnelle avec catégories en colonnes
 5. Les indicateurs de rôle (→ ←) sont inclus à côté de chaque kink

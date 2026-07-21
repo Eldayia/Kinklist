@@ -1393,8 +1393,63 @@ async function exportKinklistAsReadableImage() {
             ctx.fillText(reference, config.width - config.padding - 24, y + config.footerHeight / 2);
         }
 
-        async function canvasToJpegBlob(canvas) {
-            return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        const maxExportBytes = 4_900_000;
+
+        async function canvasToJpegBlob(canvas, quality) {
+            return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        }
+
+        async function compressExportCanvas(sourceCanvas) {
+            const qualities = [0.88, 0.84, 0.80, 0.76, 0.72];
+            let blob = null;
+
+            for (const quality of qualities) {
+                blob = await canvasToJpegBlob(sourceCanvas, quality);
+                if (!blob) throw new Error('Impossible d\'encoder l\'image en JPEG');
+                if (blob.size <= maxExportBytes) {
+                    return {
+                        blob,
+                        width: sourceCanvas.width,
+                        height: sourceCanvas.height
+                    };
+                }
+            }
+
+            // Cas exceptionnel : si la compression JPEG seule ne suffit pas,
+            // réduire progressivement l'image tout en conservant ses proportions.
+            let workingCanvas = sourceCanvas;
+            for (let attempt = 0; attempt < 6 && blob.size > maxExportBytes; attempt++) {
+                const estimatedScale = Math.sqrt(maxExportBytes / blob.size) * 0.96;
+                const scale = Math.max(0.65, Math.min(0.94, estimatedScale));
+                const resizedCanvas = document.createElement('canvas');
+                resizedCanvas.width = Math.max(1, Math.floor(workingCanvas.width * scale));
+                resizedCanvas.height = Math.max(1, Math.floor(workingCanvas.height * scale));
+                const resizedCtx = resizedCanvas.getContext('2d');
+                resizedCtx.imageSmoothingEnabled = true;
+                resizedCtx.imageSmoothingQuality = 'high';
+                resizedCtx.fillStyle = '#fafaf9';
+                resizedCtx.fillRect(0, 0, resizedCanvas.width, resizedCanvas.height);
+                resizedCtx.drawImage(
+                    workingCanvas,
+                    0,
+                    0,
+                    resizedCanvas.width,
+                    resizedCanvas.height
+                );
+                workingCanvas = resizedCanvas;
+                blob = await canvasToJpegBlob(workingCanvas, 0.72);
+                if (!blob) throw new Error('Impossible d\'encoder l\'image redimensionnée');
+            }
+
+            if (blob.size > maxExportBytes) {
+                throw new Error('Impossible de réduire l\'image sous la limite de 5 Mo');
+            }
+
+            return {
+                blob,
+                width: workingCanvas.width,
+                height: workingCanvas.height
+            };
         }
 
         function downloadExportBlob(filename, blob) {
@@ -1435,14 +1490,14 @@ async function exportKinklistAsReadableImage() {
         });
 
         drawFooter(ctx, contentY + contentHeight);
-        const blob = await canvasToJpegBlob(canvas);
-        if (!blob) throw new Error('Impossible de créer l\'image');
-        downloadExportBlob(`kinklist-${date}.jpg`, blob);
+        const compressedExport = await compressExportCanvas(canvas);
+        downloadExportBlob(`kinklist-${date}.jpg`, compressedExport.blob);
 
         const shareMessage = shareId
             ? ` L'identifiant de partage #s/${shareId} est présent dans le pied de page.`
             : '';
-        alert(`Votre kinklist a été exportée en une seule image lisible.${shareMessage}`);
+        const exportSize = (compressedExport.blob.size / 1_000_000).toFixed(2);
+        alert(`Votre kinklist a été exportée en une seule image lisible (${exportSize} Mo).${shareMessage}`);
     } catch (error) {
         console.error('Erreur export image lisible:', error);
         alert('Échec de l\'exportation en image. Ouvrez la console pour plus de détails.');
