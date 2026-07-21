@@ -56,10 +56,10 @@ Le système de partage utilise un **backend Node.js** pour générer des liens *
 
 **Endpoints** :
 - `POST /api/share` : Créer un lien court
-  - Body : `{ data: { "Cat::Kink": "status", ... } }`
+  - Body : `{ data: { selections: {...}, userInfo: {...}, roles: {...} } }`
   - Response : `{ id: "abc123", url: "https://.../#s/abc123" }`
 - `GET /api/share/:id` : Récupérer les données
-  - Response : `{ data: { ... } }`
+  - Response : `{ data: { selections: {...}, userInfo: {...}, roles: {...} } }`
 - `GET /api/health` : Health check
 - `GET /api/stats` : Statistiques (nombre de liens, accès)
 
@@ -74,7 +74,7 @@ Le système de partage utilise un **backend Node.js** pour générer des liens *
 ```json
 {
   "abc123": {
-    "data": { "Cat::Kink": "status", ... },
+    "data": { "selections": {...}, "userInfo": {...}, "roles": {...} },
     "createdAt": "2025-01-10T12:00:00.000Z",
     "accessCount": 5,
     "lastAccessedAt": "2025-01-11T15:30:00.000Z"
@@ -85,20 +85,29 @@ Le système de partage utilise un **backend Node.js** pour générer des liens *
 ### Code frontend clé
 
 ```javascript
-// Génération (script.js:803-836)
+// Génération (script.js)
 async function generateShareLink() {
-    // POST vers /api/share
+    // POST vers /api/share avec sélections + rôles
     // Récupère l'URL courte
     // Copie dans le presse-papier
 }
 
-// Chargement (script.js:839-920)
+// Chargement (script.js)
 async function loadSharedData() {
     // Détecte format : #s/abc123 ou #share=v2_...
     // GET vers /api/share/:id pour format court
     // decodeAndDecompress() pour format legacy
-    // handleSharedData() pour import
+    // handleSharedData() pour import avec rôles
 }
+
+// Rôles Donne/Reçois (script.js)
+function toggleKinkRole(kinkId, role) {
+    // Gère les 4 états : null, 'gives', 'receives', 'both'
+    // Met à jour kinkRoles et l'UI
+}
+
+function encodeRole(role) { return map[role]; } // 'g', 'r', 'b'
+function decodeRole(char) { return map[char]; } // inverse
 ```
 
 ## Système d'export image
@@ -108,13 +117,15 @@ async function loadSharedData() {
 L'export image utilise le Canvas API pour générer une image haute qualité :
 
 **Caractéristiques** :
-- Mise en page large (1400px) avec catégories en colonnes
-- HiDPI support (scale 2x)
+- Mise en page large (2400px) avec catégories en colonnes
+- HiDPI support (scale 2.5x)
 - Protection contre les limites de taille canvas (16384px)
 - Fallback html2canvas si taille trop grande
 - Design cohérent avec l'interface (dégradés, icônes)
+- Légende étendue avec statuts + rôles (Donne/Reçois)
+- Indicateurs de rôle (→ ←) dessinés à côté de chaque kink
 
-**Code clé** : `exportKinklistAsImage()` (script.js:293-542)
+**Code clé** : `exportKinklistAsImage()` (script.js)
 
 ## État de l'application
 
@@ -126,8 +137,15 @@ let kinkSelections = {
     "Catégorie::Kink": "status"  // ex: "BDSM & Domination::Bondage": "love"
 };
 
+let kinkRoles = {
+    "Catégorie::Kink": "role"  // ex: "BDSM & Domination::Bondage": "gives"
+};
+
 // 6 types de statuts
 const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
+
+// 3 types de rôles (plus null/absent)
+const ROLE_TYPES = ['gives', 'receives', 'both'];
 ```
 
 ### Gestion de la persistance
@@ -138,10 +156,19 @@ function saveToLocalStorage() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(kinkSelections));
 }
 
+function saveRolesToLocalStorage() {
+    localStorage.setItem(ROLES_KEY, JSON.stringify(kinkRoles));
+}
+
 // Chargement au démarrage
 function loadFromLocalStorage() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) kinkSelections = JSON.parse(saved);
+}
+
+function loadRolesFromLocalStorage() {
+    const saved = localStorage.getItem(ROLES_KEY);
+    if (saved) kinkRoles = JSON.parse(saved);
 }
 ```
 
@@ -153,16 +180,22 @@ Chaque statut utilise une **forme géométrique distincte** + couleur :
 
 | Statut | Forme | Couleur | Code |
 |--------|-------|---------|------|
-| J'adore | ● Cercle plein | Rose | `#d81b60` |
-| J'aime | ■ Carré | Bleu | `#1e88e5` |
-| Curieux/se | ▲ Triangle | Orange | `#ffa726` |
-| Peut-être | ◆ Losange | Violet | `#9c27b0` |
-| Non merci | ✕ Croix | Gris | `#757575` |
+| J'adore | ● Cercle plein | Rose | `#ef4444` |
+| J'aime | ■ Carré | Bleu | `#fdba74` |
+| Curieux/se | ▲ Triangle | Orange | `#3b82f6` |
+| Peut-être | ◆ Losange | Violet | `#06b6d4` |
+| Non merci | ✕ Croix | Gris | `#525252` |
 | Hard Limit | ★ Étoile | Noir | `#000000` |
+
+Pour les rôles Donne/Reçois :
+| Rôle | Symbole | Couleur | Code |
+|------|---------|---------|------|
+| Donne | → Flèche droite | Vert | `#10b981` |
+| Reçois | ← Flèche gauche | Violet | `#8b5cf6` |
 
 ### Implémentation Canvas
 
-Les icônes sont dessinées programmatiquement dans le canvas (script.js:562-613) pour garantir la cohérence avec l'interface web.
+Les icônes sont dessinées programmatiquement dans le canvas pour garantir la cohérence avec l'interface web. Les indicateurs de rôle (→ ←) sont dessinés à côté de chaque kink.
 
 ### Navigation clavier
 
@@ -172,7 +205,19 @@ Les icônes sont dessinées programmatiquement dans le canvas (script.js:562-613
 
 ## Modifications récentes importantes
 
-### 1. Suppression du format legacy (Commit 41dd10f)
+### 1. Fonctionnalité Donne/Reçois (v3.3.0)
+- **Boutons de rôle** : → (Donne) et ← (Reçois) pour chaque kink
+- **Stockage séparé** : `kinkRoles` dans `localStorage` (`kinklist-roles`)
+- **Compression** : Rôles encodés comme suffixe du statut (rétro-compatible)
+- **Export image** : Légende étendue + indicateurs dans le canvas
+- **Tooltips** : Labels au survol des icônes de statut
+
+### 2. Nettoyage liste de kinks (v3.3.0)
+- Suppression des doublons (donner)/(recevoir)/(participer)
+- "Golden shower", "Scat" fusionnés en entrées uniques
+- "Gang bang (recevoir/participer)" supprimé (existe déjà dans autre catégorie)
+
+### 3. Suppression du format legacy (Commit 41dd10f)
 - **Avant** : Fallback vers format non compressé si pako échouait
 - **Après** : Format v2 compressé uniquement, erreur explicite si pako absent
 - **Raison** : Garantir des liens courts sur tous les appareils (mobile compris)
@@ -228,7 +273,8 @@ Les icônes sont dessinées programmatiquement dans le canvas (script.js:562-613
 1. **Format des kink IDs** : `"Catégorie::Kink"` est le format standard, ne pas changer
 2. **Formes des icônes** : Essentiel pour accessibilité daltonienne
 3. **Compression des liens** : Format v2 est la référence, legacy en lecture seule
-4. **LocalStorage key** : `'kinklist-selections'` - changer casserait les données existantes
+4. **LocalStorage keys** : `'kinklist-selections'`, `'kinklist-roles'` - changer casserait les données existantes
+5. **Chars d'encodage** : Status (`l,k,c,m,n,h`) et rôles (`g,r,b`) ne se chevauchent pas
 
 ### ✅ Zones d'amélioration possibles
 

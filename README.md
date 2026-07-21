@@ -18,20 +18,26 @@ Le site utilise un système d'icônes avec **formes distinctes** pour garantir l
 - **Croix** (✕) - Non merci
 - **Étoile** (★) - Hard Limit
 
-Chaque forme utilise également une couleur pour un double encodage, mais les formes seules suffisent à différencier les statuts.
+Pour les rôles Donne/Reçois :
+- **Flèche droite** (→) vert - Donne
+- **Flèche gauche** (←) violet - Reçois
+
+Chaque forme utilise également une couleur pour un double encodage, mais les formes seules suffisent à différencier les statuts. Les tooltips au survol affichent le label de chaque icône.
 
 ### 🎯 Fonctionnalités
 
 - **Sélection intuitive** : Cliquez sur les icônes pour sélectionner votre niveau d'intérêt
+- **Rôle Donne/Reçois** : Pour chaque kink, précisez si vous donnez, recevez, ou les deux (flèches → ← avec couleurs distinctes)
+- **Tooltips** : Survolez une icône pour voir son label (J'adore, J'aime, etc.)
 - **Recherche** : Trouvez rapidement des kinks spécifiques
 - **Filtres** :
   - Par catégorie
   - Par statut de sélection
   - Combinaison des filtres
-- **Partage par lien** : Générez un lien court optimisé pour partager vos sélections (compression gzip)
-- **Export en image** : Exportez votre kinklist en image haute qualité pour Discord, Twitter, etc.
+- **Partage par lien** : Générez un lien court optimisé pour partager vos sélections et rôles (compression gzip)
+- **Export en image** : Exportez votre kinklist en image haute qualité avec indicateurs de rôle (→ ←)
 - **Bouton de partage du site** : Copiez facilement le lien du site depuis le header
-- **Sauvegarde automatique** : Vos sélections sont enregistrées dans le navigateur
+- **Sauvegarde automatique** : Vos sélections et rôles sont enregistrés dans le navigateur
 - **Compteurs** : Visualisez le nombre de sélections par catégorie
 - **Responsive** : S'adapte à tous les écrans (mobile, tablette, desktop)
 
@@ -132,6 +138,13 @@ Le backend expose les endpoints suivants :
 2. Cliquez sur une icône pour sélectionner votre niveau d'intérêt
 3. Cliquez à nouveau sur la même icône pour désélectionner
 
+### Préciser le rôle (Donne/Reçois)
+1. Pour chaque kink, deux flèches apparaissent à droite des icônes de statut
+2. **→ (Donne)** : Vous donnez / vous êtes actif/ve
+3. **← (Reçois)** : Vous recevez / vous êtes passif/ve
+4. Cliquez sur les deux pour indiquer les deux rôles (switch)
+5. Les rôles sont sauvegardés et inclus dans les liens partagés et exports image
+
 ### Rechercher et filtrer
 - Utilisez la barre de recherche pour trouver des kinks spécifiques
 - Sélectionnez une catégorie dans le menu déroulant
@@ -141,15 +154,16 @@ Le backend expose les endpoints suivants :
 1. Cliquez sur "Partager" dans les contrôles
 2. Un lien court sera copié dans votre presse-papier
 3. Partagez ce lien avec d'autres personnes
-4. Ils verront vos sélections et pourront choisir de les importer
+4. Ils verront vos sélections et rôles, et pourront choisir de les importer
 
-**Note** : Les liens sont ultra-compacts grâce à la compression gzip (format v2) !
+**Note** : Les liens sont ultra-compacts grâce à la compression gzip (format v2). Les rôles (Donne/Reçois) sont inclus dans le lien !
 
 ### Exporter en image
 1. Cliquez sur "Exporter (Image)"
-2. Une image PNG haute qualité sera téléchargée
+2. Une image haute qualité sera téléchargée
 3. Format optimisé pour Discord, Twitter et autres réseaux sociaux
 4. Mise en page professionnelle avec catégories en colonnes
+5. Les indicateurs de rôle (→ ←) sont inclus à côté de chaque kink
 
 ### Partager le site
 Cliquez sur "Partager le site" dans le header pour copier le lien https://kinklist.eldadev.fr (sans vos sélections personnelles)

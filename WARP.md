@@ -107,9 +107,14 @@ Kinklist/
 ### Système de gestion d'état
 
 L'application utilise un **state management simple** basé sur:
-- **localStorage** pour la persistance (`STORAGE_KEY = 'kinklist-selections'`)
+- **localStorage** pour la persistance :
+  - `STORAGE_KEY = 'kinklist-selections'` (statuts)
+  - `ROLES_KEY = 'kinklist-roles'` (rôles Donne/Reçois)
+  - `USER_INFO_KEY = 'kinklist-user-info'` (infos personnelles)
 - Objet JavaScript `kinkSelections` : `{ "Catégorie::Kink": "status" }`
+- Objet JavaScript `kinkRoles` : `{ "Catégorie::Kink": "gives"|"receives"|"both" }`
 - 6 types de statuts : `['love', 'like', 'curious', 'maybe', 'no', 'limit']`
+- 3 types de rôles : `['gives', 'receives', 'both']` (plus null/absent)
 
 ### Système d'identifiants
 Les kinks sont identifiés par la clé : `"${category}::${kink}"` (ex: `"BDSM & Domination::Bondage (léger)"`)
@@ -125,12 +130,17 @@ Le projet **priorise fortement l'accessibilité** pour les personnes daltonienne
 
 **Système d'icônes daltonien** - Chaque statut utilise une forme géométrique distincte + couleur :
 
-- ● **Cercle plein** (rose #d81b60) - J'adore (love)
-- ■ **Carré** (bleu #1e88e5) - J'aime (like)
-- ▲ **Triangle** (orange #ffa726) - Curieux/se (curious)
-- ◆ **Losange** (violet #9c27b0) - Peut-être (maybe)
-- ✕ **Croix** (gris #757575) - Non merci (no)
+- ● **Cercle plein** (rose #ef4444) - J'adore (love)
+- ■ **Carré** (ambre #fdba74) - J'aime (like)
+- ▲ **Triangle** (bleu #3b82f6) - Curieux/se (curious)
+- ◆ **Losange** (cyan #06b6d4) - Peut-être (maybe)
+- ✕ **Croix** (gris #525252) - Non merci (no)
 - ★ **Étoile** (noir #000000) - Hard Limit (limit)
+
+**Système de rôles Donne/Reçois** :
+- → **Flèche droite** (vert #10b981) - Donne (gives)
+- ← **Flèche gauche** (violet #8b5cf6) - Reçois (receives)
+- →← **Les deux** - Les deux rôles activés (both)
 
 **Navigation clavier** :
 - Tab/Shift+Tab : Navigation entre éléments
@@ -157,9 +167,11 @@ Le système de partage utilise un **backend Node.js** pour générer des liens *
 4. Retour de l'URL courte
 
 **Fonctions clés frontend** :
-- `generateShareLink()` : Appel API POST (script.js:803-836)
-- `loadSharedData()` : Détection format + API GET (script.js:839-920)
-- `handleSharedData()` : Import des sélections (script.js:881-920)
+- `generateShareLink()` : Appel API POST (script.js)
+- `loadSharedData()` : Détection format + API GET (script.js)
+- `handleSharedData()` : Import des sélections et rôles (script.js)
+- `toggleKinkRole()` : Gestion des rôles Donne/Reçois (script.js)
+- `encodeRole()` / `decodeRole()` : Encodage des rôles pour liens compressés
 
 ### Export/Import
 
@@ -169,12 +181,14 @@ Le système de partage utilise un **backend Node.js** pour générer des liens *
 
 **Export image** :
 - Utilise Canvas API natif pour générer une image haute qualité
-- Mise en page large (1400px) avec catégories en colonnes
-- HiDPI support (scale 2x)
+- Mise en page large (2400px) avec catégories en colonnes
+- HiDPI support (scale 2.5x)
 - Protection contre limites de taille canvas (16384px)
 - Fallback html2canvas si taille trop grande
 - Design cohérent avec l'interface (dégradés, icônes)
-- Fonction principale : `exportKinklistAsImage()` (script.js:293-542)
+- Légende étendue avec statuts + rôles (Donne/Reçois)
+- Indicateurs de rôle (→ ←) dessinés à côté de chaque kink
+- Fonction principale : `exportKinklistAsImage()` (script.js)
 
 ## Principes de développement
 
@@ -249,7 +263,19 @@ NODE_ENV=production        # Environnement Node.js
 
 ## Modifications récentes importantes
 
-### 1. Suppression du format legacy (Commit 41dd10f)
+### 1. Fonctionnalité Donne/Reçois (v3.3.0)
+- **Boutons de rôle** : → (Donne) et ← (Reçois) pour chaque kink
+- **Stockage séparé** : `kinkRoles` dans `localStorage` (`kinklist-roles`)
+- **Compression** : Rôles encodés comme suffixe du statut (rétro-compatible)
+- **Export image** : Légende étendue + indicateurs dans le canvas
+- **Tooltips** : Labels au survol des icônes de statut
+
+### 2. Nettoyage liste de kinks (v3.3.0)
+- Suppression des doublons (donner)/(recevoir)/(participer)
+- "Golden shower", "Scat" fusionnés en entrées uniques
+- "Gang bang (recevoir/participer)" supprimé (existe déjà dans autre catégorie)
+
+### 3. Suppression du format legacy (Commit 41dd10f)
 - **Avant** : Fallback vers format non compressé si pako échouait
 - **Après** : Format v2 compressé uniquement, erreur explicite si pako absent
 - **Raison** : Garantir des liens courts sur tous les appareils (mobile compris)
@@ -286,8 +312,9 @@ NODE_ENV=production        # Environnement Node.js
 1. **Format des kink IDs** : `"Catégorie::Kink"` est le format standard, ne pas changer
 2. **Formes des icônes** : Essentiel pour accessibilité daltonienne - TOUJOURS maintenir
 3. **Compression des liens** : Format v2 est la référence, legacy en lecture seule
-4. **LocalStorage key** : `'kinklist-selections'` - changer casserait les données existantes
-5. **Icônes Canvas** : Dessinées programmatiquement (script.js:562-613) pour cohérence
+4. **LocalStorage keys** : `'kinklist-selections'`, `'kinklist-roles'`, `'kinklist-user-info'` - changer casserait les données existantes
+5. **Icônes Canvas** : Dessinées programmatiquement pour cohérence avec l'interface
+6. **Chars d'encodage** : Status (`l,k,c,m,n,h`) et rôles (`g,r,b`) ne se chevauchent pas - ne pas modifier
 
 ### ✅ Zones d'amélioration possibles
 

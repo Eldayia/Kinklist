@@ -6,18 +6,21 @@ let userInfo = {
     sexuality: '',
     preference: ''
 };
+let kinkRoles = {};
 const STORAGE_KEY = 'kinklist-selections';
 const USER_INFO_KEY = 'kinklist-user-info';
+const ROLES_KEY = 'kinklist-roles';
 
 // Status types
 const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
 
 // Initialize the app
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loadFromLocalStorage();
+    loadRolesFromLocalStorage();
     loadUserInfoFromLocalStorage();
     populateUserInfoFields();
-    loadSharedData(); // Check for shared data in URL
+    await loadSharedData(); // Check for shared data in URL (async)
     renderKinklist();
     setupEventListeners();
     populateCategoryFilter();
@@ -72,6 +75,28 @@ function saveUserInfoToLocalStorage() {
         localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
     } catch (e) {
         console.error('Error saving user info:', e);
+    }
+}
+
+// Load roles from localStorage
+function loadRolesFromLocalStorage() {
+    const saved = localStorage.getItem(ROLES_KEY);
+    if (saved) {
+        try {
+            kinkRoles = JSON.parse(saved);
+        } catch (e) {
+            console.error('Error loading roles:', e);
+            kinkRoles = {};
+        }
+    }
+}
+
+// Save roles to localStorage
+function saveRolesToLocalStorage() {
+    try {
+        localStorage.setItem(ROLES_KEY, JSON.stringify(kinkRoles));
+    } catch (e) {
+        console.error('Error saving roles:', e);
     }
 }
 
@@ -183,6 +208,7 @@ function createKinkElement(kink, kinkId) {
         icon.setAttribute('role', 'button');
         icon.setAttribute('tabindex', '0');
         icon.setAttribute('aria-label', `Marquer comme ${getStatusLabel(status)}`);
+        icon.setAttribute('title', getStatusLabel(status));
 
         if (currentStatus === status) {
             icon.classList.add('active');
@@ -203,8 +229,46 @@ function createKinkElement(kink, kinkId) {
         statusDiv.appendChild(icon);
     });
 
+    // Role toggles (Donne/Reçois)
+    const roleDiv = document.createElement('div');
+    roleDiv.className = 'kink-role';
+
+    const currentRole = kinkRoles[kinkId];
+
+    const donneBtn = document.createElement('button');
+    donneBtn.className = 'role-btn role-btn-donne';
+    donneBtn.setAttribute('data-role', 'gives');
+    donneBtn.setAttribute('aria-label', 'Donne');
+    donneBtn.setAttribute('title', 'Donne');
+    donneBtn.textContent = '\u2192';
+    if (currentRole === 'gives' || currentRole === 'both') {
+        donneBtn.classList.add('active');
+    }
+    donneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleKinkRole(kinkId, 'gives');
+    });
+
+    const recoisBtn = document.createElement('button');
+    recoisBtn.className = 'role-btn role-btn-recois';
+    recoisBtn.setAttribute('data-role', 'receives');
+    recoisBtn.setAttribute('aria-label', 'Re\u00e7oit');
+    recoisBtn.setAttribute('title', 'Re\u00e7oit');
+    recoisBtn.textContent = '\u2190';
+    if (currentRole === 'receives' || currentRole === 'both') {
+        recoisBtn.classList.add('active');
+    }
+    recoisBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleKinkRole(kinkId, 'receives');
+    });
+
+    roleDiv.appendChild(donneBtn);
+    roleDiv.appendChild(recoisBtn);
+
     kinkDiv.appendChild(nameSpan);
     kinkDiv.appendChild(statusDiv);
+    kinkDiv.appendChild(roleDiv);
 
     return kinkDiv;
 }
@@ -259,6 +323,54 @@ function toggleKinkStatus(kinkId, status) {
         const category = kinkDiv.closest('.category');
         if (category) {
             updateCategoryCount(category);
+        }
+    }
+}
+
+// Toggle kink role (Donne/Reçois)
+function toggleKinkRole(kinkId, role) {
+    const currentRole = kinkRoles[kinkId];
+
+    if (currentRole === role) {
+        // Clicking the same role: deselect it
+        delete kinkRoles[kinkId];
+    } else if (currentRole === 'both') {
+        // If currently 'both', clicking either one keeps only the other
+        if (role === 'gives') {
+            kinkRoles[kinkId] = 'receives';
+        } else {
+            kinkRoles[kinkId] = 'gives';
+        }
+    } else if (currentRole === 'gives' || currentRole === 'receives') {
+        // If one is already selected, selecting the other makes it 'both'
+        kinkRoles[kinkId] = 'both';
+    } else {
+        // No role set, assign the clicked one
+        kinkRoles[kinkId] = role;
+    }
+
+    saveRolesToLocalStorage();
+
+    // Update the UI for this specific kink
+    const kinkDiv = document.querySelector(`[data-kink-id="${kinkId}"]`);
+    if (kinkDiv) {
+        const newRole = kinkRoles[kinkId];
+        const donneBtn = kinkDiv.querySelector('.role-btn-donne');
+        const recoisBtn = kinkDiv.querySelector('.role-btn-recois');
+
+        if (donneBtn) {
+            if (newRole === 'gives' || newRole === 'both') {
+                donneBtn.classList.add('active');
+            } else {
+                donneBtn.classList.remove('active');
+            }
+        }
+        if (recoisBtn) {
+            if (newRole === 'receives' || newRole === 'both') {
+                recoisBtn.classList.add('active');
+            } else {
+                recoisBtn.classList.remove('active');
+            }
         }
     }
 }
@@ -382,7 +494,8 @@ async function exportKinklistAsImage() {
         try {
             const shareData = {
                 selections: kinkSelections,
-                userInfo: userInfo
+                userInfo: userInfo,
+                roles: kinkRoles
             };
 
             const response = await fetch('/api/share', {
@@ -407,7 +520,7 @@ async function exportKinklistAsImage() {
         Object.entries(kinkSelections).forEach(([kinkId, status]) => {
             const [category, kink] = kinkId.split('::');
             if (!categoriesWithSelections[category]) categoriesWithSelections[category] = [];
-            categoriesWithSelections[category].push({ kink, status });
+            categoriesWithSelections[category].push({ kink, status, role: kinkRoles[kinkId] || null });
         });
 
         // 3) Config et hauteur totale (mise en page large avec catégories en colonnes)
@@ -426,8 +539,8 @@ async function exportKinklistAsImage() {
             categoryGap: 20,
             sectionGap: 25,
             footerHeight: 75,
-            colors: { love: '#ef4444', like: '#fdba74', curious: '#3b82f6', maybe: '#06b6d4', no: '#525252', limit: '#000000' },
-            labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit' }
+            colors: { love: '#ef4444', like: '#fdba74', curious: '#3b82f6', maybe: '#06b6d4', no: '#525252', limit: '#000000', donne: '#10b981', recois: '#8b5cf6' },
+            labels: { love: "J'adore", like: "J'aime", curious: 'Curieux/se', maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit', donne: 'Donne', recois: 'Re\u00e7oit' }
         };
 
         // Calculer la hauteur de la section infos perso (si au moins un champ rempli)
@@ -598,7 +711,7 @@ async function exportKinklistAsImage() {
         const legendItems = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
         const legendBgs = { love: '#fee2e2', like: '#ffedd5', curious: '#dbeafe', maybe: '#cffafe', no: '#e5e5e5', limit: '#f5f5f5' };
 
-        // Calculer la largeur totale
+        // Calculer la largeur totale (avec Donne/Reçois)
         ctx.font = '700 28px "DM Sans", sans-serif';
         const legendTitleWidth = ctx.measureText('LÉGENDE').width + 35;
         ctx.font = '500 24px "DM Sans", sans-serif';
@@ -606,6 +719,15 @@ async function exportKinklistAsImage() {
         const pillWidths = [];
         legendItems.forEach((status) => {
             const pillWidth = ctx.measureText(config.labels[status]).width + 70;
+            pillWidths.push(pillWidth);
+            totalWidth += pillWidth + 12;
+        });
+        // Ajouter largeur pour séparateur + Donne/Reçois
+        const roleLegendItems = ['donne', 'recois'];
+        const roleLegendBgs = { donne: '#d1fae5', recois: '#ede9fe' };
+        totalWidth += 24; // Séparateur
+        roleLegendItems.forEach((role) => {
+            const pillWidth = ctx.measureText(config.labels[role]).width + 70;
             pillWidths.push(pillWidth);
             totalWidth += pillWidth + 12;
         });
@@ -622,7 +744,7 @@ async function exportKinklistAsImage() {
         ctx.fillText('LÉGENDE', legendX, legendY);
         legendX += legendTitleWidth;
 
-        // Dessiner les items
+        // Dessiner les items de statut
         legendItems.forEach((status, index) => {
             const pillWidth = pillWidths[index];
             ctx.fillStyle = legendBgs[status];
@@ -632,6 +754,31 @@ async function exportKinklistAsImage() {
             ctx.font = '600 24px "DM Sans", sans-serif';
             ctx.textBaseline = 'middle';
             ctx.fillText(config.labels[status], legendX + 45, legendY);
+            legendX += pillWidth + 12;
+        });
+
+        // Séparateur visuel
+        ctx.fillStyle = '#d6d3d1';
+        ctx.fillRect(legendX, legendY - 14, 1, 28);
+        legendX += 24;
+
+        // Dessiner les items de rôle (Donne/Reçois)
+        roleLegendItems.forEach((role, index) => {
+            const pillIndex = legendItems.length + index;
+            const pillWidth = pillWidths[pillIndex];
+            ctx.fillStyle = roleLegendBgs[role];
+            roundRect(ctx, legendX, legendY - 19, pillWidth, 38, 8, true, false);
+            // Dessiner la flèche de rôle
+            ctx.fillStyle = config.colors[role];
+            ctx.font = '700 24px "DM Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const arrowChar = role === 'donne' ? '\u2192' : '\u2190';
+            ctx.fillText(arrowChar, legendX + 20, legendY);
+            ctx.fillStyle = config.colors[role];
+            ctx.font = '600 24px "DM Sans", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(config.labels[role], legendX + 45, legendY);
             legendX += pillWidth + 12;
         });
 
@@ -679,13 +826,32 @@ async function exportKinklistAsImage() {
                     ctx.fillStyle = '#1c1917';
                     ctx.font = '600 24px "DM Sans", sans-serif';
                     ctx.textAlign = 'left';
-                    const maxTextWidth = itemWidth - 70;
+                    // Réserver de l'espace pour les indicateurs de rôle
+                    const roleSpace = item.role ? 45 : 0;
+                    const maxTextWidth = itemWidth - 70 - roleSpace;
                     let text = item.kink;
                     if (ctx.measureText(text).width > maxTextWidth) {
                         while (ctx.measureText(text + '...').width > maxTextWidth && text.length > 0) text = text.slice(0, -1);
                         text += '...';
                     }
                     ctx.fillText(text, itemX + 55, itemY + config.itemHeight / 2 + 8);
+
+                    // Dessiner les indicateurs de rôle (Donne/Reçois)
+                    if (item.role) {
+                        const roleX = itemX + itemWidth - config.itemGap - 12;
+                        const roleY = itemY + config.itemHeight / 2;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.font = '700 20px "DM Sans", sans-serif';
+                        if (item.role === 'gives' || item.role === 'both') {
+                            ctx.fillStyle = config.colors.donne;
+                            ctx.fillText('\u2192', roleX - (item.role === 'both' ? 12 : 0), roleY);
+                        }
+                        if (item.role === 'receives' || item.role === 'both') {
+                            ctx.fillStyle = config.colors.recois;
+                            ctx.fillText('\u2190', roleX + (item.role === 'both' ? 12 : 0), roleY);
+                        }
+                    }
                 });
             }
 
@@ -883,29 +1049,47 @@ function decodeStatus(char) {
     return map[char] || '';
 }
 
+// Encode role to a single character
+function encodeRole(role) {
+    const map = { gives: 'g', receives: 'r', both: 'b' };
+    return map[role] || '';
+}
+
+// Decode character to role
+function decodeRole(char) {
+    const map = { g: 'gives', r: 'receives', b: 'both' };
+    return map[char] || null;
+}
+
 // Compression and encoding functions for sharing (optimized format with gzip)
 function compressAndEncode(data) {
     const { reverseIndex } = buildKinkIndex();
 
-    // Convert to compact format: [[id, statusChar], ...]
+    // Convert to compact format: [[id, statusChar, roleChar], ...]
+    const hasRoles = Object.keys(kinkRoles).length > 0;
     const compact = Object.entries(data).map(([kinkId, status]) => {
         const id = reverseIndex[kinkId];
-        if (id === undefined) return null; // Kink not found
-        return [id, encodeStatus(status)];
+        if (id === undefined) return null;
+        const roleChar = encodeRole(kinkRoles[kinkId]);
+        return [id, encodeStatus(status), roleChar];
     }).filter(x => x !== null);
 
-    // Check if all statuses are the same for ultra-compact format
+    // Check if all statuses are the same and no roles for ultra-compact format
     const statuses = compact.map(x => x[1]);
     const allSameStatus = statuses.length > 0 && statuses.every(s => s === statuses[0]);
+    const noRoles = !hasRoles || compact.every(x => x[2] === '');
 
     let str;
-    if (allSameStatus && compact.length > 5) {
+    if (allSameStatus && compact.length > 5 && noRoles) {
         // Ultra-compact: "s:id,id,id,..." where s is the common status
         const ids = compact.map(([id]) => id.toString(36)).join(',');
         str = `${statuses[0]}:${ids}`;
-    } else {
-        // Regular compact: "ids,ids,..." where each entry is id+status in base36
+    } else if (noRoles) {
+        // Regular compact without roles: "ids,ids,..." where each entry is id+status in base36
         str = compact.map(([id, s]) => `${id.toString(36)}${s}`).join(',');
+    } else {
+        // Compact with roles: "idSr,idSr,..." where S=status, R=role (optional)
+        str = compact.map(([id, s, r]) => r ? `${id.toString(36)}${s}${r}` : `${id.toString(36)}${s}`).join(',');
     }
 
     // Compress with gzip (pako required)
@@ -975,6 +1159,7 @@ function decodeAndDecompress(encoded) {
 
         // Parse compact format
         const result = {};
+        const roles = {};
 
         // Check if it's ultra-compact format (s:id,id,id,...)
         if (str.includes(':') && str.indexOf(':') < 5) {
@@ -994,13 +1179,28 @@ function decodeAndDecompress(encoded) {
                 });
             }
         } else {
-            // Regular compact format
+            // Regular compact format (with or without roles)
             str.split(',').forEach(pair => {
                 if (!pair) return;
 
-                // Extract status character (last char)
-                const statusChar = pair.slice(-1);
-                const idStr = pair.slice(0, -1);
+                // Check if last char is a role char (g, r, b)
+                // INVARIANT: status chars (l,k,c,m,n,h) and role chars (g,r,b) are disjoint,
+                // so we can safely disambiguate by checking the last two characters.
+                const lastChar = pair.slice(-1);
+                const secondLastChar = pair.slice(-2, -1);
+                let statusChar, roleChar, idStr;
+
+                if ('grb'.includes(lastChar) && 'lkcmnh'.includes(secondLastChar)) {
+                    // New format with role
+                    statusChar = secondLastChar;
+                    roleChar = lastChar;
+                    idStr = pair.slice(0, -2);
+                } else {
+                    // Old format without role
+                    statusChar = lastChar;
+                    roleChar = null;
+                    idStr = pair.slice(0, -1);
+                }
 
                 const id = parseInt(idStr, 36);
                 if (isNaN(id)) return;
@@ -1010,11 +1210,17 @@ function decodeAndDecompress(encoded) {
 
                 if (kinkId && status) {
                     result[kinkId] = status;
+                    if (roleChar) {
+                        const role = decodeRole(roleChar);
+                        if (role) {
+                            roles[kinkId] = role;
+                        }
+                    }
                 }
             });
         }
 
-        return result;
+        return { selections: result, roles };
     } catch (e) {
         console.error('Error decoding shared data:', e);
         return null;
@@ -1042,10 +1248,11 @@ async function generateShareLink() {
     }
 
     try {
-        // Préparer les données à partager (sélections + infos perso)
+        // Préparer les données à partager (sélections + infos perso + rôles)
         const shareData = {
             selections: kinkSelections,
-            userInfo: userInfo
+            userInfo: userInfo,
+            roles: kinkRoles
         };
 
         // Tentative d'appel à l'API backend pour créer un lien court
@@ -1111,9 +1318,9 @@ async function loadSharedData() {
 
                 const { data: sharedData } = await response.json();
 
-                // Nouveau format avec selections + userInfo
+                // Nouveau format avec selections + userInfo + roles
                 if (sharedData.selections) {
-                    await handleSharedData(sharedData.selections, sharedData.userInfo);
+                    await handleSharedData(sharedData.selections, sharedData.userInfo, sharedData.roles);
                 } else {
                     // Ancien format (rétrocompatibilité)
                     await handleSharedData(sharedData);
@@ -1131,10 +1338,10 @@ async function loadSharedData() {
     // Format legacy : #share=v2_...
     else if (hash && hash.startsWith('#share=')) {
         const encoded = hash.substring(7); // Remove '#share='
-        const sharedSelections = decodeAndDecompress(encoded);
+        const decoded = decodeAndDecompress(encoded);
 
-        if (sharedSelections) {
-            await handleSharedData(sharedSelections);
+        if (decoded) {
+            await handleSharedData(decoded.selections, null, decoded.roles);
         } else {
             alert('Le lien de partage est invalide ou corrompu.');
             window.location.hash = '';
@@ -1143,7 +1350,7 @@ async function loadSharedData() {
 }
 
 // Helper function to handle shared data import
-async function handleSharedData(sharedSelections, sharedUserInfo = null) {
+async function handleSharedData(sharedSelections, sharedUserInfo = null, sharedRoles = null) {
     const hasLocalData = Object.keys(kinkSelections).length > 0;
 
     if (hasLocalData) {
@@ -1156,6 +1363,10 @@ async function handleSharedData(sharedSelections, sharedUserInfo = null) {
 
         if (choice) {
             kinkSelections = sharedSelections;
+            if (sharedRoles) {
+                kinkRoles = sharedRoles;
+                saveRolesToLocalStorage();
+            }
             if (sharedUserInfo) {
                 userInfo = sharedUserInfo;
                 saveUserInfoToLocalStorage();
@@ -1167,6 +1378,9 @@ async function handleSharedData(sharedSelections, sharedUserInfo = null) {
         } else {
             // Just display without saving
             kinkSelections = sharedSelections;
+            if (sharedRoles) {
+                kinkRoles = sharedRoles;
+            }
             if (sharedUserInfo) {
                 userInfo = sharedUserInfo;
                 populateUserInfoFields();
@@ -1183,6 +1397,10 @@ async function handleSharedData(sharedSelections, sharedUserInfo = null) {
 
         if (choice) {
             kinkSelections = sharedSelections;
+            if (sharedRoles) {
+                kinkRoles = sharedRoles;
+                saveRolesToLocalStorage();
+            }
             if (sharedUserInfo) {
                 userInfo = sharedUserInfo;
                 saveUserInfoToLocalStorage();
@@ -1194,6 +1412,9 @@ async function handleSharedData(sharedSelections, sharedUserInfo = null) {
         } else {
             // Just display without saving
             kinkSelections = sharedSelections;
+            if (sharedRoles) {
+                kinkRoles = sharedRoles;
+            }
             if (sharedUserInfo) {
                 userInfo = sharedUserInfo;
                 populateUserInfoFields();
@@ -1211,8 +1432,10 @@ function resetKinklist() {
 
     if (confirmReset) {
         kinkSelections = {};
+        kinkRoles = {};
         userInfo = { name: '', gender: '', sexuality: '', preference: '' };
         saveToLocalStorage();
+        saveRolesToLocalStorage();
         saveUserInfoToLocalStorage();
         populateUserInfoFields();
         applyFilters();
