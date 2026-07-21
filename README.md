@@ -166,7 +166,7 @@ Le backend expose les endpoints suivants :
 5. Les indicateurs de rôle (→ ←) sont inclus à côté de chaque kink
 
 ### Partager le site
-Cliquez sur "Partager le site" dans le header pour copier le lien https://kinklist.eldadev.fr (sans vos sélections personnelles)
+Cliquez sur "Partager le site" dans le header pour copier le lien https://kink.eldayia.fr (sans vos sélections personnelles)
 
 ## 🎨 Accessibilité
 
@@ -263,7 +263,7 @@ Kinklist/
 
 Les liens de partage utilisent un **backend Node.js** pour générer des URLs ultra-courtes :
 
-**Format** : `https://kinklist.eldadev.fr/#s/abc123` (~40 caractères !)
+**Format** : `https://kink.eldayia.fr/#s/abc123` (~34 caractères !)
 
 **Processus** :
 1. Le frontend envoie les sélections au backend via API REST

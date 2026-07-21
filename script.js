@@ -877,7 +877,7 @@ async function exportKinklistAsImage() {
         ctx.fillStyle = '#78716c';
         ctx.font = '500 24px "DM Sans", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Développé par EldaDev / Twitter : @eldadev_ / @eldayia', config.width / 2, y + config.footerHeight / 2 + 8);
+        ctx.fillText('Développé par Eldayia · x.com/eldayia', config.width / 2, y + config.footerHeight / 2 + 8);
 
         // ID de partage en bas à droite (si disponible)
         if (shareId) {
@@ -1236,7 +1236,7 @@ function decodeAndDecompress(encoded) {
 
 // Share site link (without selections)
 function shareSiteLink() {
-    const siteUrl = 'https://kinklist.eldadev.fr';
+    const siteUrl = 'https://kink.eldayia.fr';
 
     // Copy to clipboard
     navigator.clipboard.writeText(siteUrl).then(() => {
