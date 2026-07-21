@@ -229,9 +229,7 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
     // Show message if no results
     if (container.children.length === 0) {
         const noResults = document.createElement('div');
-        noResults.style.textAlign = 'center';
-        noResults.style.padding = '3rem';
-        noResults.style.color = 'var(--text-secondary)';
+        noResults.className = 'no-results';
         noResults.innerHTML = '<h3>Aucun résultat trouvé</h3><p>Essayez de modifier vos filtres</p>';
         container.appendChild(noResults);
     }
@@ -1022,7 +1020,7 @@ async function exportKinklistAsImage() {
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
-        a.style.display = 'none';
+        a.className = 'download-link-hidden';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1481,7 +1479,7 @@ async function exportKinklistAsReadableImage() {
             const link = document.createElement('a');
             link.href = url;
             link.download = filename;
-            link.style.display = 'none';
+            link.className = 'download-link-hidden';
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -1857,7 +1855,7 @@ async function generateShareLink() {
         }
 
         const { id } = await response.json();
-        if (!id || !/^[a-zA-Z0-9]{6}$/.test(id)) {
+        if (!id || !/^[a-zA-Z0-9]{12}$/.test(id)) {
             throw new Error('Réponse API invalide : identifiant court manquant');
         }
         const url = buildShortShareUrl(id);
@@ -1886,11 +1884,11 @@ async function generateShareLink() {
 async function loadSharedData() {
     const hash = window.location.hash;
 
-    // Format court : #s/abc123
+    // Format court : #s/A1b2C3d4E5f6
     if (hash && hash.startsWith('#s/')) {
         const id = hash.substring(3); // Remove '#s/'
 
-        if (id.length === 6) {
+        if (/^[a-zA-Z0-9]{12}$/.test(id)) {
             try {
                 const response = await fetch(getApiUrl(`/api/share/${id}`));
 
@@ -1921,20 +1919,11 @@ async function loadSharedData() {
             return false;
         }
     }
-    // Format legacy : #share=v2_...
+    // Les anciens liens contenant directement les données ne sont plus acceptés.
     else if (hash && hash.startsWith('#share=')) {
-        const encoded = hash.substring(7); // Remove '#share='
-        const decoded = decodeAndDecompress(encoded);
-
-        if (decoded) {
-            await handleSharedData(decoded.selections, null, decoded.roles);
-            clearShareHash();
-            return true;
-        } else {
-            alert('Le lien de partage est invalide ou corrompu.');
-            clearShareHash();
-            return false;
-        }
+        alert('Cet ancien format de lien n\'est plus accepté. Demandez un nouveau lien court.');
+        clearShareHash();
+        return false;
     }
 
     return false;

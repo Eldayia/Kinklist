@@ -5,7 +5,7 @@ Un site web moderne et accessible pour créer et partager votre kinklist (liste 
 ## ✨ Caractéristiques
 
 ### 📋 Liste Complète
-- **350+ kinks** organisés en **17 catégories** thématiques
+- **1 000+ kinks** organisés en **45 catégories** thématiques
 - Catégories incluant : BDSM, Impact Play, Oral, Fluides, Public, Roleplay, Fétichisme, et plus
 
 ### ♿ Accessibilité pour Daltoniens
@@ -34,7 +34,7 @@ Chaque forme utilise également une couleur pour un double encodage, mais les fo
   - Par catégorie
   - Par statut de sélection
   - Combinaison des filtres
-- **Partage par lien** : Générez un lien court optimisé pour partager vos sélections et rôles (compression gzip)
+- **Partage par lien** : Générez un lien court à identifiant aléatoire pour partager vos sélections et rôles
 - **Export en image** : Exportez toute votre kinklist dans une seule image haute qualité, avec libellés complets et indicateurs de rôle (→ ←)
 - **Bouton de partage du site** : Copiez facilement le lien du site depuis le header
 - **Sauvegarde automatique** : Vos sélections et rôles sont enregistrés dans le navigateur
@@ -115,13 +115,26 @@ Créez un fichier `.env` à la racine du projet avec les variables suivantes :
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
 | `PORT` | Port d'écoute sur la machine hôte | `8080` |
-| `NGINX_HOST` | Nom d'hôte nginx | `localhost` |
+| `NODE_ENV` | Active notamment HSTS et interdit les origines locales | `production` |
+| `SHARE_TTL_DAYS` | Conservation des liens entre 1 et 365 jours; `0` désactive l'expiration | `30` |
+| `ALLOWED_ORIGINS` | Origines CORS supplémentaires séparées par des virgules | `https://kink.eldayia.fr` |
+| `STATS_TOKEN` | Bearer token protégeant `/api/stats`; route désactivée si vide | vide |
+| `DATA_ENCRYPTION_KEY` | Secret de 32 caractères minimum pour chiffrer les partages; obligatoire en production | aucune |
+| `DATA_DIR` | Répertoire du fichier de stockage JSON | `./data` |
+| `TRUST_PROXY` | À activer uniquement derrière un reverse proxy de confiance | `false` |
 
 **Exemple de fichier `.env` :**
 ```env
 PORT=8080
-NGINX_HOST=localhost
+NODE_ENV=production
+SHARE_TTL_DAYS=30
+ALLOWED_ORIGINS=https://kink.eldayia.fr
+STATS_TOKEN=remplacez-moi-par-un-secret-long-et-aleatoire
+DATA_ENCRYPTION_KEY=remplacez-moi-par-un-autre-secret-long-et-aleatoire
+TRUST_PROXY=false
 ```
+
+Générez les deux secrets séparément avec `openssl rand -hex 32`. N'enregistrez jamais votre fichier `.env` dans Git. Conservez impérativement `DATA_ENCRYPTION_KEY` avec vos sauvegardes : les partages chiffrés sont irrécupérables sans cette clé.
 
 #### Architecture Docker
 
@@ -132,6 +145,7 @@ Le projet utilise :
 - **Volume** : Persistance des liens partagés dans `/app/data`
 - **Health check** : Vérifie automatiquement que l'API fonctionne (`/api/health`)
 - **Restart policy** : Redémarre automatiquement en cas d'erreur
+- **Isolation** : Utilisateur non-root, système de fichiers en lecture seule, capacités Linux supprimées
 
 #### API Endpoints
 
@@ -139,7 +153,7 @@ Le backend expose les endpoints suivants :
 - **POST `/api/share`** : Créer un lien court (body: `{data: {...}}`)
 - **GET `/api/share/:id`** : Récupérer les données d'un lien court
 - **GET `/api/health`** : Health check du serveur
-- **GET `/api/stats`** : Statistiques globales (optionnel)
+- **GET `/api/stats`** : Statistiques globales, désactivées sans `STATS_TOKEN` et protégées par Bearer token
 
 ### Sélectionner vos préférences
 1. Parcourez les catégories
@@ -164,7 +178,7 @@ Le backend expose les endpoints suivants :
 3. Partagez ce lien avec d'autres personnes
 4. Ils verront vos sélections et rôles, et pourront choisir de les importer
 
-Le lien reprend automatiquement le domaine actuellement utilisé : par exemple `http://localhost:3000/#s/abc123` en local ou `https://kink.eldayia.fr/#s/abc123` en production. Aucun lien long de secours n'est généré si l'API est indisponible. Les rôles (Donne/Reçois) sont inclus dans les données partagées.
+Le lien reprend automatiquement le domaine actuellement utilisé : par exemple `http://localhost:3000/#s/A1b2C3d4E5f6` en local ou `https://kink.eldayia.fr/#s/A1b2C3d4E5f6` en production. Aucun lien long de secours n'est généré si l'API est indisponible. Les rôles (Donne/Reçois) sont inclus dans les données partagées.
 
 ### Exporter en image
 1. Cliquez sur "Exporter (Image)"
@@ -244,21 +258,25 @@ Kinklist/
 - JavaScript Vanilla (ES6+)
 - LocalStorage pour la persistance locale
 - Canvas API pour l'export en image (avec fallback html2canvas)
-- **Pako** (gzip) pour compatibilité liens legacy
 
 ### Backend
 - **Node.js 18+** avec Express
 - **nanoid** pour génération d'ID courts
 - Stockage JSON (évolutif vers BDD si nécessaire)
-- API REST avec CORS
+- API REST avec CORS limité aux origines autorisées
+- Validation stricte des données, limitation du débit et taille maximale des requêtes
+- En-têtes CSP/HSTS/anti-clickjacking et fichiers publics explicitement autorisés
+- Écriture sérialisée et permissions privées (`0700`/`0600`) pour le stockage JSON
+- Chiffrement authentifié AES-256-GCM en production; les identifiants de liens ne sont pas stockés en clair
 
 ## 🔒 Confidentialité
 
-- **Données locales** : Vos sélections restent dans votre navigateur (localStorage)
-- **Partage optionnel** : Les liens de partage stockent les données côté serveur uniquement si vous partagez
+- **Données locales** : Vos sélections restent dans votre navigateur tant que vous ne créez pas de lien de partage
+- **Partage optionnel** : Créer un lien envoie les sélections, rôles et informations personnelles renseignées au serveur
+- **Expiration** : Les partages expirent après 30 jours par défaut. Utilisez `SHARE_TTL_DAYS=0` pour les conserver sans limite de durée
 - **Aucun tracking** : Pas de cookies ou d'analytics
 - **Pas de compte** : Aucune authentification requise
-- **Données anonymes** : Aucune information personnelle n'est collectée
+- **Minimisation** : Les champs vides et les rôles sans sélection associée ne sont pas conservés dans un partage
 
 ## 🌈 Catégories disponibles
 
@@ -295,12 +313,12 @@ Kinklist/
 
 Les liens de partage utilisent un **backend Node.js** pour générer des URLs ultra-courtes :
 
-**Format** : `https://kink.eldayia.fr/#s/abc123` (~34 caractères !)
+**Format** : `https://kink.eldayia.fr/#s/A1b2C3d4E5f6`
 
 **Processus** :
 1. Le frontend envoie les sélections au backend via API REST
-2. Le backend génère un ID unique de 6 caractères alphanumériques
-3. Les données sont stockées côté serveur (fichier JSON)
+2. Le backend valide les données et génère un ID aléatoire de 12 caractères alphanumériques
+3. Les données sont stockées côté serveur dans un fichier JSON privé et expirent automatiquement
 4. Le lien court est généré et copié dans le presse-papier
 
 **Résultat** : Un lien de **moins de 80 caractères** garanti, quelle que soit la taille de votre liste ! 🎉
@@ -308,14 +326,13 @@ Les liens de partage utilisent un **backend Node.js** pour générer des URLs ul
 ### Architecture technique
 
 - **Backend** : Node.js + Express
-- **Génération d'ID** : nanoid (6 caractères)
-- **Stockage** : Fichier JSON avec métadonnées (date, compteur d'accès)
+- **Génération d'ID** : nanoid (12 caractères, environ 71 bits d'entropie)
+- **Stockage** : Fichier JSON privé avec expiration, date et compteur d'accès
 - **API** : `/api/share` (POST) et `/api/share/:id` (GET)
 
 ### Compatibilité
 
-- **Format court** : `#s/abc123` (nouveau système avec backend)
-- **Format legacy** : `#share=v2_...` (ancien système compressé, toujours supporté en lecture)
+- **Format court** : `#s/A1b2C3d4E5f6`
 - **Mobile** : Optimisé pour tous les appareils
 
 ## 🤝 Contribution

@@ -13,9 +13,9 @@ Ce fichier fournit un contexte spécifique pour Codex lors du travail sur ce pro
 - **Backend** : Node.js 18+ avec Express
 - **Stockage local** : LocalStorage pour la persistance navigateur
 - **Stockage serveur** : Fichier JSON pour les liens partagés
-- **Compression** : Pako (gzip) pour compatibilité liens legacy
 - **Export image** : Canvas API avec fallback html2canvas
-- **Génération d'ID** : nanoid (6 caractères alphanumériques)
+- **Génération d'ID** : nanoid (12 caractères alphanumériques)
+- **Sécurité backend** : CSP, CORS restreint, rate limiting, validation stricte, AES-256-GCM et expiration des liens
 
 ### Fichiers principaux
 
@@ -25,7 +25,7 @@ Kinklist/
 │   ├── index.html          # Structure HTML sémantique avec ARIA
 │   ├── style.css           # Styles avec système d'icônes accessibles
 │   ├── script.js           # Logique applicative complète
-│   ├── kinks-data.js       # Base de données de 350+ kinks
+│   ├── kinks-data.js       # Base de données de 1 000+ kinks
 │   └── favicon.svg         # Favicon avec dégradé thématique
 ├── Backend
 │   ├── server.js           # Serveur Express avec API REST
@@ -47,8 +47,7 @@ Kinklist/
 
 Le système de partage utilise un **backend Node.js** pour générer des liens **garantis < 80 caractères** :
 
-**Format court** : `#s/abc123` (~40 caractères total)
-**Format legacy** : `#share=v2_...` (supporté en lecture seule pour rétrocompatibilité)
+**Format court** : `#s/A1b2C3d4E5f6`
 
 ### Architecture backend
 
@@ -57,25 +56,25 @@ Le système de partage utilise un **backend Node.js** pour générer des liens *
 **Endpoints** :
 - `POST /api/share` : Créer un lien court
   - Body : `{ data: { selections: {...}, userInfo: {...}, roles: {...} } }`
-  - Response : `{ id: "abc123", url: "https://.../#s/abc123" }`
+  - Response : `{ id: "A1b2C3d4E5f6", url: "https://.../#s/A1b2C3d4E5f6", expiresInDays: 30 }`
 - `GET /api/share/:id` : Récupérer les données
   - Response : `{ data: { selections: {...}, userInfo: {...}, roles: {...} } }`
 - `GET /api/health` : Health check
-- `GET /api/stats` : Statistiques (nombre de liens, accès)
+- `GET /api/stats` : Statistiques protégées par `Authorization: Bearer <STATS_TOKEN>`; route désactivée sans jeton
 
 **Génération d'ID** :
 - Bibliothèque : `nanoid` avec alphabet alphanumeric
-- Longueur : 6 caractères
-- Espace de collision : 62^6 = ~56 milliards de combinaisons
+- Longueur : 12 caractères (~71 bits d'entropie)
 
 **Stockage** :
 - Fichier : `data/shares.json`
 - Structure :
 ```json
 {
-  "abc123": {
+  "A1b2C3d4E5f6": {
     "data": { "selections": {...}, "userInfo": {...}, "roles": {...} },
     "createdAt": "2025-01-10T12:00:00.000Z",
+    "expiresAt": "2025-02-09T12:00:00.000Z",
     "accessCount": 5,
     "lastAccessedAt": "2025-01-11T15:30:00.000Z"
   }
@@ -94,9 +93,8 @@ async function generateShareLink() {
 
 // Chargement (script.js)
 async function loadSharedData() {
-    // Détecte format : #s/abc123 ou #share=v2_...
+    // Détecte le format #s/A1b2C3d4E5f6
     // GET vers /api/share/:id pour format court
-    // decodeAndDecompress() pour format legacy
     // handleSharedData() pour import avec rôles
 }
 
@@ -208,7 +206,7 @@ Les icônes sont dessinées programmatiquement dans le canvas pour garantir la c
 ### 1. Fonctionnalité Donne/Reçois (v3.3.0)
 - **Boutons de rôle** : → (Donne) et ← (Reçois) pour chaque kink
 - **Stockage séparé** : `kinkRoles` dans `localStorage` (`kinklist-roles`)
-- **Compression** : Rôles encodés comme suffixe du statut (rétro-compatible)
+- **Partage** : Les rôles sont inclus dans les données envoyées à l'API
 - **Export image** : Légende étendue + indicateurs dans le canvas
 - **Tooltips** : Labels au survol des icônes de statut
 
@@ -217,13 +215,14 @@ Les icônes sont dessinées programmatiquement dans le canvas pour garantir la c
 - "Golden shower", "Scat" fusionnés en entrées uniques
 - "Gang bang (recevoir/participer)" supprimé (existe déjà dans autre catégorie)
 
-### 3. Suppression du format legacy (Commit 41dd10f)
-- **Avant** : Fallback vers format non compressé si pako échouait
-- **Après** : Format v2 compressé uniquement, erreur explicite si pako absent
-- **Raison** : Garantir des liens courts sur tous les appareils (mobile compris)
+### 3. Durcissement sécurité (v3.5.0)
+- Identifiants de partage de 12 caractères, stockés sous forme de SHA-256
+- Données chiffrées en AES-256-GCM et liens expirant automatiquement
+- Validation stricte, rate limiting, CSP, CORS restreint et fichiers publics en liste blanche
+- Conteneur non-root avec système de fichiers en lecture seule
 
 ### 2. Bouton "Partager le site" (Commit e6d5bf2)
-- Bouton dans le header copiant `https://kinklist.eldadev.fr`
+- Bouton dans le header copiant `https://kink.eldayia.fr`
 - Permet de partager le site lui-même (sans sélections)
 - Style glassmorphism avec backdrop-filter
 - Responsive (pleine largeur sur mobile)
@@ -248,17 +247,19 @@ Les icônes sont dessinées programmatiquement dans le canvas pour garantir la c
 
 ### 2. Performance
 - Minimiser les re-renders (rendu complet uniquement quand nécessaire)
-- Compression maximale pour les liens de partage
+- Limiter la taille des données envoyées et des images exportées
 - Images HiDPI mais taille contrôlée
 
 ### 3. Compatibilité
-- Support format legacy en lecture (rétrocompatibilité)
 - Fallbacks pour API modernes (clipboard, canvas)
 - Responsive mobile-first
 
-### 4. Confidentialité
-- **Aucune donnée** n'est envoyée à un serveur
-- Tout reste dans le navigateur (localStorage)
+### 4. Confidentialité et sécurité
+- Les données restent dans `localStorage` tant que l'utilisateur ne crée pas de lien
+- Créer un lien envoie les champs renseignés au serveur pour 30 jours par défaut; `SHARE_TTL_DAYS=0` désactive l'expiration
+- Le serveur valide et minimise les données, limite le débit et n'expose que les fichiers frontend autorisés
+- `data/shares.json` est privé (`0600`) et n'est jamais servi par HTTP
+- En production, `DATA_ENCRYPTION_KEY` (32 caractères minimum) est obligatoire et chiffre les données en AES-256-GCM
 - Pas de tracking, analytics ou cookies
 
 ### 5. Langue
@@ -272,7 +273,7 @@ Les icônes sont dessinées programmatiquement dans le canvas pour garantir la c
 
 1. **Format des kink IDs** : `"Catégorie::Kink"` est le format standard, ne pas changer
 2. **Formes des icônes** : Essentiel pour accessibilité daltonienne
-3. **Compression des liens** : Format v2 est la référence, legacy en lecture seule
+3. **Format des liens** : identifiants alphanumériques de 12 caractères, ne pas réduire leur entropie
 4. **LocalStorage keys** : `'kinklist-selections'`, `'kinklist-roles'` - changer casserait les données existantes
 5. **Chars d'encodage** : Status (`l,k,c,m,n,h`) et rôles (`g,r,b`) ne se chevauchent pas
 
@@ -288,11 +289,9 @@ Les icônes sont dessinées programmatiquement dans le canvas pour garantir la c
 
 ### Développement local
 ```bash
-# Serveur HTTP simple
-python -m http.server 8080
-
-# Ou avec Node.js
-npx http-server -p 8080
+# Installer puis lancer le frontend et l'API ensemble
+npm install
+npm start
 ```
 
 ### Docker
@@ -328,18 +327,16 @@ Co-Authored-By: Codex Sonnet 4.5 <noreply@anthropic.com>"
 - **cors** : Gestion des requêtes cross-origin
 - **nanoid** : Génération d'ID courts sécurisés
 
-### Frontend (CDN)
-- **Pako** : Compression gzip pour compatibilité liens legacy
-  - CDN : `https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js`
-- **html2canvas** : Fallback export image (chargement dynamique si nécessaire)
+### Frontend
+- Aucune dépendance CDN : les en-têtes CSP n'autorisent que les scripts et styles locaux
 
 ## Contact et crédits
 
-**Développeur** : EldaDev
+**Développeur** : Eldayia
 - GitHub : [@eldayia](https://github.com/eldayia)
-- Twitter : [@eldadev_](https://x.com/eldadev_) / [@eldayia](https://x.com/eldayia)
+- X : [@eldayia](https://x.com/eldayia)
 
-**Site** : https://kinklist.eldadev.fr
+**Site** : https://kink.eldayia.fr
 
 ---
 
