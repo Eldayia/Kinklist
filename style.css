@@ -1978,6 +1978,46 @@ select:focus-visible {
 .theme-nocturne footer a { color: #ff80af; }
 .theme-nocturne footer a:hover { color: #ffafd0; border-bottom-color: #ffafd0; }
 
+.back-to-top {
+    position: fixed;
+    right: max(1rem, env(safe-area-inset-right));
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    z-index: 100;
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    place-items: center;
+    border: 1px solid rgba(255, 92, 152, 0.5);
+    border-radius: 50%;
+    background: rgba(33, 24, 32, 0.92);
+    color: #ff80af;
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.32);
+    font: 700 1.25rem/1 "Inter", sans-serif;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(0.65rem);
+    transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease,
+        border-color 180ms ease, background-color 180ms ease;
+    backdrop-filter: blur(10px);
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.back-to-top:hover {
+    border-color: #ff80af;
+    background: #382032;
+}
+
+.back-to-top:active { transform: translateY(2px); }
+
 .theme-nocturne *:focus-visible,
 .theme-nocturne button:focus-visible,
 .theme-nocturne input:focus-visible,
@@ -2018,6 +2058,13 @@ select:focus-visible {
 }
 
 @media (max-width: 460px) {
+    .back-to-top {
+        right: max(0.75rem, env(safe-area-inset-right));
+        bottom: max(0.75rem, env(safe-area-inset-bottom));
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
     .site-brand-logo { width: 2.45rem; height: 2.45rem; }
     .site-brand-logo img { width: 1.95rem; height: 1.95rem; }
     .site-brand-copy strong { font-size: 1rem; }
@@ -2032,4 +2079,8 @@ select:focus-visible {
     .theme-nocturne .kink-item { column-gap: 0.4rem; padding: 0.7rem; }
     .theme-nocturne .kink-status { gap: 0.05rem; }
     .theme-nocturne .kink-role { gap: 0.05rem; padding-left: 0.35rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .back-to-top { transition: none; }
 }

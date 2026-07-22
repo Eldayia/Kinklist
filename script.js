@@ -93,10 +93,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadUserInfoFromLocalStorage();
     populateUserInfoFields();
     setupGuideCarousel();
+    setupBackToTop();
     await loadSharedData(); // Check for shared data in URL (async)
     renderKinklist();
     setupEventListeners();
 });
+
+function setupBackToTop() {
+    const button = document.getElementById('back-to-top');
+    if (!button) return;
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let updatePending = false;
+
+    const updateVisibility = () => {
+        const isVisible = window.scrollY > 160;
+        button.classList.toggle('visible', isVisible);
+        button.setAttribute('aria-hidden', String(!isVisible));
+        button.tabIndex = isVisible ? 0 : -1;
+        updatePending = false;
+    };
+
+    window.addEventListener('scroll', () => {
+        if (updatePending) return;
+        updatePending = true;
+        window.requestAnimationFrame(updateVisibility);
+    }, { passive: true });
+
+    button.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: reducedMotion.matches ? 'auto' : 'smooth'
+        });
+    });
+
+    updateVisibility();
+}
 
 // Load selections from localStorage
 function loadFromLocalStorage() {

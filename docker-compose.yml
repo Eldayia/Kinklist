@@ -5,15 +5,15 @@ services:
       dockerfile: Dockerfile
     container_name: kinklist-app
     ports:
-      - "${PORT:-8080}:3000"
+      - "${HOST_PORT:-3000}:3000"
     restart: unless-stopped
     environment:
       - PORT=3000
       - NODE_ENV=${NODE_ENV:-production}
-      - SHARE_TTL_DAYS=${SHARE_TTL_DAYS:-30}
+      - SHARE_TTL_DAYS=${SHARE_TTL_DAYS:-0}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://kink.eldayia.fr}
       - STATS_TOKEN=${STATS_TOKEN:-}
-      - DATA_ENCRYPTION_KEY=${DATA_ENCRYPTION_KEY:-}
+      - DATA_ENCRYPTION_KEY=${DATA_ENCRYPTION_KEY:-FXdgkrJmkwv/tRcStXG+cCeBeWowbn+hLZD6j8zIVg4=}
       - TRUST_PROXY=${TRUST_PROXY:-false}
     volumes:
       - kinklist-data:/app/data

@@ -76,7 +76,7 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-L'application sera accessible sur `http://localhost:8080` (ou le port que vous avez configuré).
+L'application sera accessible sur `http://localhost:3000` (ou le port défini avec `HOST_PORT`).
 
 #### Commandes Docker utiles
 
@@ -111,7 +111,7 @@ Créez un fichier `.env` à la racine du projet avec les variables suivantes :
 
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
-| `PORT` | Port d'écoute sur la machine hôte | `8080` |
+| `HOST_PORT` | Port publié sur la machine hôte | `3000` |
 | `NODE_ENV` | Active notamment HSTS et interdit les origines locales | `production` |
 | `SHARE_TTL_DAYS` | Conservation des liens entre 1 et 365 jours; `0` désactive l'expiration | `30` |
 | `ALLOWED_ORIGINS` | Origines CORS supplémentaires séparées par des virgules | `https://kink.eldayia.fr` |
@@ -122,7 +122,7 @@ Créez un fichier `.env` à la racine du projet avec les variables suivantes :
 
 **Exemple de fichier `.env` :**
 ```env
-PORT=8080
+HOST_PORT=3000
 NODE_ENV=production
 SHARE_TTL_DAYS=30
 ALLOWED_ORIGINS=https://kink.eldayia.fr
@@ -138,7 +138,7 @@ Générez les deux secrets séparément avec `openssl rand -hex 32`. N'enregistr
 Le projet utilise :
 - **Image de base** : `node:18-alpine` (légère et performante)
 - **Serveur** : Node.js + Express servant à la fois l'API et les fichiers statiques
-- **Port exposé** : 3000 (mappé sur le port configuré, par défaut 8080)
+- **Port exposé** : 3000 dans le conteneur, publié par défaut sur le port 3000 de la machine hôte
 - **Volume** : Persistance des liens partagés dans `/app/data`
 - **Health check** : Vérifie automatiquement que l'API fonctionne (`/api/health`)
 - **Restart policy** : Redémarre automatiquement en cas d'erreur
