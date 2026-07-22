@@ -1138,6 +1138,22 @@ async function exportKinklistAsReadableImage() {
             return;
         }
 
+        if (document.fonts) {
+            await Promise.all([
+                document.fonts.load('400 24px Inter'),
+                document.fonts.load('600 24px Inter'),
+                document.fonts.load('700 48px "Playfair Display"'),
+                document.fonts.ready
+            ]);
+        }
+
+        const logoImage = await new Promise(resolve => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => resolve(null);
+            image.src = 'favicon.svg';
+        });
+
         let shareId = null;
         try {
             const response = await fetch(getApiUrl('/api/share'), {
@@ -1173,25 +1189,39 @@ async function exportKinklistAsReadableImage() {
             width: 0,
             maxCanvasHeight: 16300,
             padding: 48,
-            headerHeight: 112,
-            legendHeight: 92,
-            footerHeight: 72,
+            headerHeight: 126,
+            legendHeight: 94,
+            footerHeight: 76,
             categoryWidth: 690,
             categoryGap: 24,
             rowGap: 24,
             itemGap: 7,
             itemMinHeight: 60,
             itemLineHeight: 29,
-            categoryTitleLineHeight: 31,
+            categoryTitleLineHeight: 32,
+            categoryDescriptionLineHeight: 23,
             colors: {
                 love: '#ef4444', like: '#fdba74', curious: '#3b82f6',
-                maybe: '#06b6d4', no: '#525252', limit: '#000000',
+                maybe: '#06b6d4', no: '#a39aa1', limit: '#f6eef4',
                 donne: '#10b981', recois: '#8b5cf6'
             },
             labels: {
                 love: "J'adore", like: "J'aime", curious: 'Curieux/se',
                 maybe: 'Peut-être', no: 'Non merci', limit: 'Hard Limit',
                 donne: 'Donne', recois: 'Reçoit'
+            },
+            theme: {
+                background: '#110d12',
+                panel: '#1a141b',
+                panelRaised: '#211820',
+                item: '#171217',
+                border: '#382835',
+                borderStrong: '#5a3048',
+                text: '#f6eef4',
+                secondaryText: '#ad9faa',
+                mutedText: '#806f7b',
+                accent: '#ff4f91',
+                accentSoft: '#ff82b2'
             }
         };
 
@@ -1249,12 +1279,26 @@ async function exportKinklistAsReadableImage() {
             userInfo.preference && `Rôle : ${userInfo.preference}`
         ].filter(Boolean).join('  •  ');
 
-        function measureCategory(category, items, categoryWidth) {
-            measureCtx.font = '600 29px Fraunces, serif';
-            const titleLines = wrapText(measureCtx, category, categoryWidth - 44);
-            const headerHeight = Math.max(66, titleLines.length * config.categoryTitleLineHeight + 26);
+        function measureCategory(category, items, categoryWidth, categoryNumber) {
+            const headerTextWidth = categoryWidth - 104;
+            measureCtx.font = '700 29px "Playfair Display", Georgia, serif';
+            const titleLines = wrapText(measureCtx, category, headerTextWidth);
+            measureCtx.font = '500 18px Inter, sans-serif';
+            const descriptionLines = wrapText(
+                measureCtx,
+                CATEGORY_DESCRIPTIONS[category],
+                headerTextWidth
+            );
+            const headerHeight = Math.max(
+                92,
+                22
+                    + titleLines.length * config.categoryTitleLineHeight
+                    + 4
+                    + descriptionLines.length * config.categoryDescriptionLineHeight
+                    + 18
+            );
             const itemLayouts = items.map(item => {
-                measureCtx.font = '600 25px "DM Sans", sans-serif';
+                measureCtx.font = '600 25px Inter, sans-serif';
                 const roleWidth = item.role ? 68 : 20;
                 const textWidth = categoryWidth - 32 - 54 - roleWidth;
                 const lines = wrapText(measureCtx, item.kink, textWidth);
@@ -1268,7 +1312,9 @@ async function exportKinklistAsReadableImage() {
                 + Math.max(0, itemLayouts.length - 1) * config.itemGap;
             return {
                 category,
+                categoryNumber,
                 titleLines,
+                descriptionLines,
                 headerHeight,
                 items: itemLayouts,
                 height: headerHeight + 16 + itemsHeight + 16
@@ -1316,7 +1362,13 @@ async function exportKinklistAsReadableImage() {
             return columns;
         }
 
-        const categoryEntries = Object.entries(groupedSelections);
+        const categoryEntries = Object.keys(kinksData)
+            .map((category, index) => [
+                category,
+                groupedSelections[category],
+                String(index + 1).padStart(2, '0')
+            ])
+            .filter(([, items]) => Array.isArray(items) && items.length > 0);
         let columnCount = categoryEntries.length <= 6 ? 2
             : categoryEntries.length <= 12 ? 3
                 : categoryEntries.length <= 20 ? 4 : 5;
@@ -1338,14 +1390,16 @@ async function exportKinklistAsReadableImage() {
                 + (columnCount - 1) * config.categoryGap;
             innerWidth = config.width - config.padding * 2;
             categoryLayouts = categoryEntries
-                .map(([category, items]) => measureCategory(category, items, config.categoryWidth));
+                .map(([category, items, categoryNumber]) =>
+                    measureCategory(category, items, config.categoryWidth, categoryNumber)
+                );
             columns = partitionInBalancedColumns(categoryLayouts, columnCount);
             contentHeight = Math.max(...columns.map(column =>
                 column.reduce((height, layout, index) =>
                     height + layout.height + (index ? config.rowGap : 0), 0)
             ));
 
-            measureCtx.font = '600 27px "DM Sans", sans-serif';
+            measureCtx.font = '600 27px Inter, sans-serif';
             infoLines = infoText ? wrapText(measureCtx, infoText, innerWidth - 60) : [];
             userInfoHeight = infoLines.length ? Math.max(82, infoLines.length * 34 + 32) : 0;
             fixedTopHeight = config.padding + config.headerHeight + 18
@@ -1363,29 +1417,58 @@ async function exportKinklistAsReadableImage() {
 
         function drawHeader(ctx, y) {
             const gradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
-            gradient.addColorStop(0, '#a855f7');
-            gradient.addColorStop(1, '#ec4899');
+            gradient.addColorStop(0, '#2f1828');
+            gradient.addColorStop(0.52, '#21151e');
+            gradient.addColorStop(1, '#171217');
             ctx.fillStyle = gradient;
-            roundRect(ctx, config.padding, y, innerWidth, config.headerHeight, 12, true, false);
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
+            roundRect(ctx, config.padding, y, innerWidth, config.headerHeight, 18, true, false);
+            ctx.strokeStyle = config.theme.borderStrong;
+            ctx.lineWidth = 1.5;
+            roundRect(ctx, config.padding, y, innerWidth, config.headerHeight, 18, false, true);
+
+            const accent = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
+            accent.addColorStop(0, '#ff4f91');
+            accent.addColorStop(0.55, '#c43c91');
+            accent.addColorStop(1, '#8b5cf6');
+            ctx.fillStyle = accent;
+            roundRect(ctx, config.padding + 1, y + 1, innerWidth - 2, 7, 6, true, false);
+
+            const brandWidth = 455;
+            const logoSize = 76;
+            const brandX = config.width / 2 - brandWidth / 2;
+            const logoY = y + (config.headerHeight - logoSize) / 2 + 2;
+            const logoGradient = ctx.createLinearGradient(brandX, logoY, brandX + logoSize, logoY + logoSize);
+            logoGradient.addColorStop(0, '#451b35');
+            logoGradient.addColorStop(1, '#231222');
+            ctx.fillStyle = logoGradient;
+            roundRect(ctx, brandX, logoY, logoSize, logoSize, 18, true, false);
+            ctx.strokeStyle = '#713a57';
+            roundRect(ctx, brandX, logoY, logoSize, logoSize, 18, false, true);
+            if (logoImage) {
+                ctx.drawImage(logoImage, brandX + 9, logoY + 9, logoSize - 18, logoSize - 18);
+            }
+
+            const textX = brandX + logoSize + 24;
+            ctx.fillStyle = config.theme.text;
+            ctx.textAlign = 'left';
             ctx.textBaseline = 'alphabetic';
-            ctx.font = '700 48px Fraunces, serif';
-            ctx.fillText('Ma Kinklist', config.width / 2, y + 50);
-            ctx.font = '400 24px "DM Sans", sans-serif';
-            ctx.fillText('Explorez et partagez vos préférences', config.width / 2, y + 84);
+            ctx.font = '700 48px "Playfair Display", Georgia, serif';
+            ctx.fillText('Ma Kinklist', textX, y + 58);
+            ctx.fillStyle = config.theme.secondaryText;
+            ctx.font = '500 20px Inter, sans-serif';
+            ctx.fillText('EXPLORER · COMPRENDRE · PARTAGER', textX, y + 88);
             return y + config.headerHeight + 18;
         }
 
         function drawUserInfo(ctx, y) {
             if (!userInfoHeight) return y;
-            ctx.fillStyle = '#ffffff';
-            roundRect(ctx, config.padding, y, innerWidth, userInfoHeight, 12, true, false);
-            ctx.strokeStyle = '#e7e5e4';
+            ctx.fillStyle = config.theme.panel;
+            roundRect(ctx, config.padding, y, innerWidth, userInfoHeight, 14, true, false);
+            ctx.strokeStyle = config.theme.border;
             ctx.lineWidth = 1;
-            roundRect(ctx, config.padding, y, innerWidth, userInfoHeight, 12, false, true);
-            ctx.fillStyle = '#1c1917';
-            ctx.font = '600 27px "DM Sans", sans-serif';
+            roundRect(ctx, config.padding, y, innerWidth, userInfoHeight, 14, false, true);
+            ctx.fillStyle = config.theme.text;
+            ctx.font = '600 27px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const firstLineY = y + userInfoHeight / 2 - ((infoLines.length - 1) * 34) / 2;
@@ -1396,33 +1479,31 @@ async function exportKinklistAsReadableImage() {
         }
 
         function drawLegend(ctx, y) {
-            ctx.fillStyle = '#ffffff';
-            roundRect(ctx, config.padding, y, innerWidth, config.legendHeight, 12, true, false);
-            ctx.strokeStyle = '#e7e5e4';
-            roundRect(ctx, config.padding, y, innerWidth, config.legendHeight, 12, false, true);
+            ctx.fillStyle = config.theme.panel;
+            roundRect(ctx, config.padding, y, innerWidth, config.legendHeight, 14, true, false);
+            ctx.strokeStyle = config.theme.border;
+            roundRect(ctx, config.padding, y, innerWidth, config.legendHeight, 14, false, true);
             const entries = ['love', 'like', 'curious', 'maybe', 'no', 'limit', 'donne', 'recois'];
-            const backgrounds = {
-                love: '#fee2e2', like: '#ffedd5', curious: '#dbeafe', maybe: '#cffafe',
-                no: '#e5e5e5', limit: '#f5f5f5', donne: '#d1fae5', recois: '#ede9fe'
-            };
             const gap = 10;
             const pillWidth = (innerWidth - 40 - gap * (entries.length - 1)) / entries.length;
             let x = config.padding + 20;
             const centerY = y + config.legendHeight / 2;
             entries.forEach(entry => {
-                ctx.fillStyle = backgrounds[entry];
+                ctx.fillStyle = config.theme.item;
                 roundRect(ctx, x, centerY - 25, pillWidth, 50, 8, true, false);
+                ctx.strokeStyle = config.theme.border;
+                roundRect(ctx, x, centerY - 25, pillWidth, 50, 8, false, true);
                 if (entry === 'donne' || entry === 'recois') {
                     ctx.fillStyle = config.colors[entry];
-                    ctx.font = '700 23px "DM Sans", sans-serif';
+                    ctx.font = '700 23px Inter, sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(entry === 'donne' ? '→' : '←', x + 24, centerY);
                 } else {
                     drawStatusIcon(ctx, entry, x + 24, centerY, config.colors, 1.35);
                 }
-                ctx.fillStyle = config.colors[entry];
-                ctx.font = '600 19px "DM Sans", sans-serif';
+                ctx.fillStyle = config.theme.text;
+                ctx.font = '600 19px Inter, sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(config.labels[entry], x + 48, centerY);
@@ -1432,33 +1513,61 @@ async function exportKinklistAsReadableImage() {
         }
 
         function drawCategory(ctx, layout, x, y) {
-            ctx.fillStyle = '#ffffff';
-            roundRect(ctx, x, y, config.categoryWidth, layout.height, 12, true, false);
-            ctx.strokeStyle = '#e7e5e4';
+            ctx.fillStyle = config.theme.panel;
+            roundRect(ctx, x, y, config.categoryWidth, layout.height, 14, true, false);
+            ctx.strokeStyle = config.theme.border;
             ctx.lineWidth = 1;
-            roundRect(ctx, x, y, config.categoryWidth, layout.height, 12, false, true);
+            roundRect(ctx, x, y, config.categoryWidth, layout.height, 14, false, true);
 
-            ctx.fillStyle = '#f5f5f4';
-            roundRect(ctx, x, y, config.categoryWidth, layout.headerHeight, 12, true, false);
-            ctx.fillStyle = '#1c1917';
-            ctx.font = '600 29px Fraunces, serif';
+            const headerGradient = ctx.createLinearGradient(x, y, x + config.categoryWidth, y);
+            headerGradient.addColorStop(0, '#301a29');
+            headerGradient.addColorStop(1, '#1c151c');
+            ctx.fillStyle = headerGradient;
+            roundRect(ctx, x + 1, y + 1, config.categoryWidth - 2, layout.headerHeight, 13, true, false);
+            ctx.strokeStyle = config.theme.border;
+            ctx.beginPath();
+            ctx.moveTo(x, y + layout.headerHeight);
+            ctx.lineTo(x + config.categoryWidth, y + layout.headerHeight);
+            ctx.stroke();
+
+            ctx.fillStyle = config.theme.accentSoft;
+            ctx.font = '800 18px Inter, sans-serif';
             ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            const titleStartY = y + layout.headerHeight / 2
-                - ((layout.titleLines.length - 1) * config.categoryTitleLineHeight) / 2;
+            ctx.textBaseline = 'top';
+            ctx.fillText(layout.categoryNumber, x + 22, y + 24);
+
+            const copyX = x + 72;
+            const titleStartY = y + 18;
+            ctx.fillStyle = config.theme.text;
+            ctx.font = '700 29px "Playfair Display", Georgia, serif';
             layout.titleLines.forEach((line, index) => {
-                ctx.fillText(line, x + 22, titleStartY + index * config.categoryTitleLineHeight);
+                ctx.fillText(line, copyX, titleStartY + index * config.categoryTitleLineHeight);
+            });
+
+            const descriptionStartY = titleStartY
+                + layout.titleLines.length * config.categoryTitleLineHeight
+                + 4;
+            ctx.fillStyle = config.theme.secondaryText;
+            ctx.font = '500 18px Inter, sans-serif';
+            layout.descriptionLines.forEach((line, index) => {
+                ctx.fillText(
+                    line,
+                    copyX,
+                    descriptionStartY + index * config.categoryDescriptionLineHeight
+                );
             });
 
             let itemY = y + layout.headerHeight + 16;
             layout.items.forEach(item => {
-                ctx.fillStyle = '#fafaf9';
+                ctx.fillStyle = config.theme.item;
                 roundRect(ctx, x + 16, itemY, config.categoryWidth - 32, item.height, 8, true, false);
+                ctx.strokeStyle = '#30232e';
+                roundRect(ctx, x + 16, itemY, config.categoryWidth - 32, item.height, 8, false, true);
                 const centerY = itemY + item.height / 2;
                 drawStatusIcon(ctx, item.status, x + 40, centerY, config.colors, 1.5);
 
-                ctx.fillStyle = '#1c1917';
-                ctx.font = '600 25px "DM Sans", sans-serif';
+                ctx.fillStyle = config.theme.text;
+                ctx.font = '600 25px Inter, sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 const textStartY = centerY - ((item.lines.length - 1) * config.itemLineHeight) / 2;
@@ -1468,7 +1577,7 @@ async function exportKinklistAsReadableImage() {
 
                 if (item.role) {
                     const roleX = x + config.categoryWidth - 48;
-                    ctx.font = '700 23px "DM Sans", sans-serif';
+                    ctx.font = '700 23px Inter, sans-serif';
                     ctx.textAlign = 'center';
                     if (item.role === 'gives' || item.role === 'both') {
                         ctx.fillStyle = config.colors.donne;
@@ -1484,17 +1593,18 @@ async function exportKinklistAsReadableImage() {
         }
 
         function drawFooter(ctx, y) {
-            ctx.fillStyle = '#ffffff';
-            roundRect(ctx, config.padding, y, innerWidth, config.footerHeight, 12, true, false);
-            ctx.strokeStyle = '#e7e5e4';
-            roundRect(ctx, config.padding, y, innerWidth, config.footerHeight, 12, false, true);
-            ctx.fillStyle = '#78716c';
-            ctx.font = '500 22px "DM Sans", sans-serif';
+            ctx.fillStyle = config.theme.panel;
+            roundRect(ctx, config.padding, y, innerWidth, config.footerHeight, 14, true, false);
+            ctx.strokeStyle = config.theme.border;
+            roundRect(ctx, config.padding, y, innerWidth, config.footerHeight, 14, false, true);
+            ctx.fillStyle = config.theme.secondaryText;
+            ctx.font = '500 21px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('Développé par Eldayia · x.com/eldayia', config.width / 2, y + config.footerHeight / 2);
             ctx.textAlign = 'right';
             const reference = shareId ? `#s/${shareId}` : '';
+            ctx.fillStyle = config.theme.accentSoft;
             ctx.fillText(reference, config.width - config.padding - 24, y + config.footerHeight / 2);
         }
 
@@ -1532,7 +1642,7 @@ async function exportKinklistAsReadableImage() {
                 const resizedCtx = resizedCanvas.getContext('2d');
                 resizedCtx.imageSmoothingEnabled = true;
                 resizedCtx.imageSmoothingQuality = 'high';
-                resizedCtx.fillStyle = '#fafaf9';
+                resizedCtx.fillStyle = config.theme.background;
                 resizedCtx.fillRect(0, 0, resizedCanvas.width, resizedCanvas.height);
                 resizedCtx.drawImage(
                     workingCanvas,
@@ -1576,7 +1686,20 @@ async function exportKinklistAsReadableImage() {
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.fillStyle = '#fafaf9';
+        ctx.fillStyle = config.theme.background;
+        ctx.fillRect(0, 0, config.width, imageHeight);
+        const pageGlow = ctx.createRadialGradient(
+            config.width * 0.86,
+            0,
+            0,
+            config.width * 0.86,
+            0,
+            Math.max(config.width * 0.62, 900)
+        );
+        pageGlow.addColorStop(0, '#42152f');
+        pageGlow.addColorStop(0.42, '#20111c');
+        pageGlow.addColorStop(1, config.theme.background);
+        ctx.fillStyle = pageGlow;
         ctx.fillRect(0, 0, config.width, imageHeight);
 
         let contentY = config.padding;
