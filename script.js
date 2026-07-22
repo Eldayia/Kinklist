@@ -1219,7 +1219,9 @@ async function exportKinklistAsReadableImage() {
 
         const config = {
             width: 0,
+            maxCanvasWidth: 16300,
             maxCanvasHeight: 16300,
+            discordMaxEdge: 4096,
             padding: 48,
             headerHeight: 126,
             legendHeight: 94,
@@ -1227,9 +1229,9 @@ async function exportKinklistAsReadableImage() {
             categoryWidth: 690,
             categoryGap: 24,
             rowGap: 24,
-            itemGap: 7,
-            itemMinHeight: 60,
-            itemLineHeight: 29,
+            itemGap: 3,
+            itemMinHeight: 52,
+            itemLineHeight: 27,
             categoryTitleLineHeight: 32,
             categoryDescriptionLineHeight: 23,
             colors: {
@@ -1330,13 +1332,13 @@ async function exportKinklistAsReadableImage() {
                     + 18
             );
             const itemLayouts = items.map(item => {
-                measureCtx.font = '600 25px Inter, sans-serif';
+                measureCtx.font = '700 25px Inter, sans-serif';
                 const roleWidth = item.role ? 68 : 20;
                 const textWidth = categoryWidth - 32 - 54 - roleWidth;
                 const lines = wrapText(measureCtx, item.kink, textWidth);
                 const height = Math.max(
                     config.itemMinHeight,
-                    lines.length * config.itemLineHeight + 22
+                    lines.length * config.itemLineHeight + 16
                 );
                 return { ...item, lines, height, textWidth };
             });
@@ -1401,11 +1403,16 @@ async function exportKinklistAsReadableImage() {
                 String(index + 1).padStart(2, '0')
             ])
             .filter(([, items]) => Array.isArray(items) && items.length > 0);
-        let columnCount = categoryEntries.length <= 6 ? 2
+        const minimumColumnCount = categoryEntries.length <= 6 ? 2
             : categoryEntries.length <= 12 ? 3
                 : categoryEntries.length <= 20 ? 4 : 5;
-        columnCount = Math.min(columnCount, Math.max(2, categoryEntries.length));
+        const firstColumnCount = Math.min(
+            minimumColumnCount,
+            Math.max(1, categoryEntries.length)
+        );
+        const lastColumnCount = Math.min(12, categoryEntries.length);
 
+        let columnCount;
         let categoryLayouts;
         let columns;
         let innerWidth;
@@ -1415,64 +1422,105 @@ async function exportKinklistAsReadableImage() {
         let fixedBottomHeight;
         let contentHeight;
         let imageHeight;
+        let bestLayout = null;
 
-        while (true) {
-            config.width = config.padding * 2
-                + columnCount * config.categoryWidth
-                + (columnCount - 1) * config.categoryGap;
-            innerWidth = config.width - config.padding * 2;
-            categoryLayouts = categoryEntries
+        // Discord affiche les aperçus via son CDN dans une enveloppe pouvant être
+        // fortement réduite. Une image proche du carré conserve donc des caractères
+        // nettement plus grands qu'une très longue image verticale.
+        for (let candidateColumnCount = firstColumnCount;
+            candidateColumnCount <= lastColumnCount;
+            candidateColumnCount++) {
+            const candidateWidth = config.padding * 2
+                + candidateColumnCount * config.categoryWidth
+                + (candidateColumnCount - 1) * config.categoryGap;
+            if (candidateWidth > config.maxCanvasWidth) break;
+
+            const candidateInnerWidth = candidateWidth - config.padding * 2;
+            const candidateCategoryLayouts = categoryEntries
                 .map(([category, items, categoryNumber]) =>
                     measureCategory(category, items, config.categoryWidth, categoryNumber)
                 );
-            columns = partitionInBalancedColumns(categoryLayouts, columnCount);
-            contentHeight = Math.max(...columns.map(column =>
+            const candidateColumns = partitionInBalancedColumns(
+                candidateCategoryLayouts,
+                candidateColumnCount
+            );
+            const candidateContentHeight = Math.max(...candidateColumns.map(column =>
                 column.reduce((height, layout, index) =>
                     height + layout.height + (index ? config.rowGap : 0), 0)
             ));
 
             measureCtx.font = '600 27px Inter, sans-serif';
-            infoLines = infoText ? wrapText(measureCtx, infoText, innerWidth - 60) : [];
-            userInfoHeight = infoLines.length ? Math.max(82, infoLines.length * 34 + 32) : 0;
-            fixedTopHeight = config.padding + config.headerHeight + 18
-                + (userInfoHeight ? userInfoHeight + 18 : 0)
+            const candidateInfoLines = infoText
+                ? wrapText(measureCtx, infoText, candidateInnerWidth - 60)
+                : [];
+            const candidateUserInfoHeight = candidateInfoLines.length
+                ? Math.max(82, candidateInfoLines.length * 34 + 32)
+                : 0;
+            const candidateFixedTopHeight = config.padding + config.headerHeight + 18
+                + (candidateUserInfoHeight ? candidateUserInfoHeight + 18 : 0)
                 + config.legendHeight + 24;
-            fixedBottomHeight = config.footerHeight + config.padding;
-            imageHeight = fixedTopHeight + contentHeight + fixedBottomHeight;
+            const candidateFixedBottomHeight = config.footerHeight + config.padding;
+            const candidateImageHeight = candidateFixedTopHeight
+                + candidateContentHeight
+                + candidateFixedBottomHeight;
+            if (candidateImageHeight > config.maxCanvasHeight) continue;
 
-            if (imageHeight <= config.maxCanvasHeight || columnCount >= 8
-                || columnCount >= categoryEntries.length) {
-                break;
+            const longestEdge = Math.max(candidateWidth, candidateImageHeight);
+            const aspectRatioPenalty = Math.abs(
+                Math.log(candidateWidth / candidateImageHeight)
+            ) * 180;
+            const score = longestEdge + aspectRatioPenalty;
+            if (!bestLayout || score < bestLayout.score) {
+                bestLayout = {
+                    score,
+                    columnCount: candidateColumnCount,
+                    width: candidateWidth,
+                    innerWidth: candidateInnerWidth,
+                    categoryLayouts: candidateCategoryLayouts,
+                    columns: candidateColumns,
+                    contentHeight: candidateContentHeight,
+                    infoLines: candidateInfoLines,
+                    userInfoHeight: candidateUserInfoHeight,
+                    fixedTopHeight: candidateFixedTopHeight,
+                    fixedBottomHeight: candidateFixedBottomHeight,
+                    imageHeight: candidateImageHeight
+                };
             }
-            columnCount++;
         }
 
+        if (!bestLayout) {
+            throw new Error('La kinklist dépasse les dimensions maximales du navigateur');
+        }
+
+        ({
+            columnCount,
+            innerWidth,
+            categoryLayouts,
+            columns,
+            contentHeight,
+            infoLines,
+            userInfoHeight,
+            fixedTopHeight,
+            fixedBottomHeight,
+            imageHeight
+        } = bestLayout);
+        config.width = bestLayout.width;
+
         function drawHeader(ctx, y) {
-            const gradient = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
-            gradient.addColorStop(0, '#2f1828');
-            gradient.addColorStop(0.52, '#21151e');
-            gradient.addColorStop(1, '#171217');
-            ctx.fillStyle = gradient;
+            ctx.fillStyle = '#21151e';
             roundRect(ctx, config.padding, y, innerWidth, config.headerHeight, 18, true, false);
             ctx.strokeStyle = config.theme.borderStrong;
             ctx.lineWidth = 1.5;
             roundRect(ctx, config.padding, y, innerWidth, config.headerHeight, 18, false, true);
 
-            const accent = ctx.createLinearGradient(config.padding, y, config.width - config.padding, y);
-            accent.addColorStop(0, '#ff4f91');
-            accent.addColorStop(0.55, '#c43c91');
-            accent.addColorStop(1, '#8b5cf6');
-            ctx.fillStyle = accent;
+            ctx.fillStyle = config.theme.accent;
             roundRect(ctx, config.padding + 1, y + 1, innerWidth - 2, 7, 6, true, false);
 
             const brandWidth = 455;
             const logoSize = 76;
             const brandX = config.width / 2 - brandWidth / 2;
             const logoY = y + (config.headerHeight - logoSize) / 2 + 2;
-            const logoGradient = ctx.createLinearGradient(brandX, logoY, brandX + logoSize, logoY + logoSize);
-            logoGradient.addColorStop(0, '#451b35');
-            logoGradient.addColorStop(1, '#231222');
-            ctx.fillStyle = logoGradient;
+            ctx.fillStyle = '#35172c';
             roundRect(ctx, brandX, logoY, logoSize, logoSize, 18, true, false);
             ctx.strokeStyle = '#713a57';
             roundRect(ctx, brandX, logoY, logoSize, logoSize, 18, false, true);
@@ -1551,10 +1599,7 @@ async function exportKinklistAsReadableImage() {
             ctx.lineWidth = 1;
             roundRect(ctx, x, y, config.categoryWidth, layout.height, 14, false, true);
 
-            const headerGradient = ctx.createLinearGradient(x, y, x + config.categoryWidth, y);
-            headerGradient.addColorStop(0, '#301a29');
-            headerGradient.addColorStop(1, '#1c151c');
-            ctx.fillStyle = headerGradient;
+            ctx.fillStyle = '#241923';
             roundRect(ctx, x + 1, y + 1, config.categoryWidth - 2, layout.headerHeight, 13, true, false);
             ctx.strokeStyle = config.theme.border;
             ctx.beginPath();
@@ -1599,7 +1644,7 @@ async function exportKinklistAsReadableImage() {
                 drawStatusIcon(ctx, item.status, x + 40, centerY, config.colors, 1.5);
 
                 ctx.fillStyle = config.theme.text;
-                ctx.font = '600 25px Inter, sans-serif';
+                ctx.font = '700 25px Inter, sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 const textStartY = centerY - ((item.lines.length - 1) * config.itemLineHeight) / 2;
@@ -1642,61 +1687,56 @@ async function exportKinklistAsReadableImage() {
 
         const maxExportBytes = 4_900_000;
 
-        async function canvasToJpegBlob(canvas, quality) {
-            return await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        async function encodeCanvas(canvas, mimeType, quality) {
+            return await new Promise(resolve => canvas.toBlob(resolve, mimeType, quality));
         }
 
         async function compressExportCanvas(sourceCanvas) {
-            const qualities = [0.88, 0.84, 0.80, 0.76, 0.72];
-            let blob = null;
+            const losslessBlob = await encodeCanvas(sourceCanvas, 'image/png');
+            if (losslessBlob && losslessBlob.size <= maxExportBytes) {
+                return {
+                    blob: losslessBlob,
+                    extension: 'png',
+                    formatLabel: 'PNG sans perte',
+                    width: sourceCanvas.width,
+                    height: sourceCanvas.height
+                };
+            }
 
-            for (const quality of qualities) {
-                blob = await canvasToJpegBlob(sourceCanvas, quality);
-                if (!blob) throw new Error('Impossible d\'encoder l\'image en JPEG');
-                if (blob.size <= maxExportBytes) {
-                    return {
-                        blob,
-                        width: sourceCanvas.width,
-                        height: sourceCanvas.height
-                    };
+            const encoders = [
+                {
+                    mimeType: 'image/webp',
+                    extension: 'webp',
+                    formatLabel: 'WebP haute qualité',
+                    qualities: [1, 0.98, 0.96, 0.94, 0.92, 0.90, 0.86, 0.82]
+                },
+                {
+                    mimeType: 'image/jpeg',
+                    extension: 'jpg',
+                    formatLabel: 'JPEG haute qualité',
+                    qualities: [0.95, 0.92, 0.90, 0.88, 0.84, 0.80]
+                }
+            ];
+
+            for (const encoder of encoders) {
+                for (const quality of encoder.qualities) {
+                    const blob = await encodeCanvas(sourceCanvas, encoder.mimeType, quality);
+                    if (!blob || blob.type !== encoder.mimeType) break;
+                    if (blob.size <= maxExportBytes) {
+                        return {
+                            blob,
+                            extension: encoder.extension,
+                            formatLabel: encoder.formatLabel,
+                            width: sourceCanvas.width,
+                            height: sourceCanvas.height
+                        };
+                    }
                 }
             }
 
-            // Cas exceptionnel : si la compression JPEG seule ne suffit pas,
-            // réduire progressivement l'image tout en conservant ses proportions.
-            let workingCanvas = sourceCanvas;
-            for (let attempt = 0; attempt < 6 && blob.size > maxExportBytes; attempt++) {
-                const estimatedScale = Math.sqrt(maxExportBytes / blob.size) * 0.96;
-                const scale = Math.max(0.65, Math.min(0.94, estimatedScale));
-                const resizedCanvas = document.createElement('canvas');
-                resizedCanvas.width = Math.max(1, Math.floor(workingCanvas.width * scale));
-                resizedCanvas.height = Math.max(1, Math.floor(workingCanvas.height * scale));
-                const resizedCtx = resizedCanvas.getContext('2d');
-                resizedCtx.imageSmoothingEnabled = true;
-                resizedCtx.imageSmoothingQuality = 'high';
-                resizedCtx.fillStyle = config.theme.background;
-                resizedCtx.fillRect(0, 0, resizedCanvas.width, resizedCanvas.height);
-                resizedCtx.drawImage(
-                    workingCanvas,
-                    0,
-                    0,
-                    resizedCanvas.width,
-                    resizedCanvas.height
-                );
-                workingCanvas = resizedCanvas;
-                blob = await canvasToJpegBlob(workingCanvas, 0.72);
-                if (!blob) throw new Error('Impossible d\'encoder l\'image redimensionnée');
-            }
-
-            if (blob.size > maxExportBytes) {
-                throw new Error('Impossible de réduire l\'image sous la limite de 5 Mo');
-            }
-
-            return {
-                blob,
-                width: workingCanvas.width,
-                height: workingCanvas.height
-            };
+            throw new Error(
+                'Impossible de conserver la pleine résolution sous la limite de 5 Mo'
+            );
         }
 
         function downloadExportBlob(filename, blob) {
@@ -1712,26 +1752,20 @@ async function exportKinklistAsReadableImage() {
         }
 
         const date = new Date().toISOString().split('T')[0];
+        const renderScale = Math.min(
+            1,
+            config.discordMaxEdge / Math.max(config.width, imageHeight)
+        );
         const canvas = document.createElement('canvas');
-        canvas.width = config.width;
-        canvas.height = imageHeight;
+        canvas.width = Math.max(1, Math.floor(config.width * renderScale));
+        canvas.height = Math.max(1, Math.floor(imageHeight * renderScale));
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
+        // Dessiner directement à la résolution finale évite que Discord réduise
+        // ensuite une grande image et floute tout le texte lors du rééchantillonnage.
+        ctx.scale(renderScale, renderScale);
         ctx.fillStyle = config.theme.background;
-        ctx.fillRect(0, 0, config.width, imageHeight);
-        const pageGlow = ctx.createRadialGradient(
-            config.width * 0.86,
-            0,
-            0,
-            config.width * 0.86,
-            0,
-            Math.max(config.width * 0.62, 900)
-        );
-        pageGlow.addColorStop(0, '#42152f');
-        pageGlow.addColorStop(0.42, '#20111c');
-        pageGlow.addColorStop(1, config.theme.background);
-        ctx.fillStyle = pageGlow;
         ctx.fillRect(0, 0, config.width, imageHeight);
 
         let contentY = config.padding;
@@ -1751,13 +1785,20 @@ async function exportKinklistAsReadableImage() {
 
         drawFooter(ctx, contentY + contentHeight);
         const compressedExport = await compressExportCanvas(canvas);
-        downloadExportBlob(`kinklist-${date}.jpg`, compressedExport.blob);
+        downloadExportBlob(
+            `kinklist-${date}.${compressedExport.extension}`,
+            compressedExport.blob
+        );
 
         const shareMessage = shareId
             ? ` L'identifiant de partage #s/${shareId} est présent dans le pied de page.`
             : '';
         const exportSize = (compressedExport.blob.size / 1_000_000).toFixed(2);
-        alert(`Votre kinklist a été exportée en une seule image lisible (${exportSize} Mo).${shareMessage}`);
+        alert(
+            `Votre kinklist a été exportée en une seule image ${compressedExport.formatLabel}`
+            + ` (${compressedExport.width} × ${compressedExport.height}px, ${exportSize} Mo).`
+            + shareMessage
+        );
     } catch (error) {
         console.error('Erreur export image lisible:', error);
         alert('Échec de l\'exportation en image. Ouvrez la console pour plus de détails.');
