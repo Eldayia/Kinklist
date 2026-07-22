@@ -6,153 +6,170 @@
     <title>Kinklist - Liste de Préférences Accessible</title>
     <meta name="description" content="Créez et partagez votre kinklist">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="style.css?v=3.5.0">
+    <link rel="stylesheet" href="style.css?v=3.7.0">
 </head>
-<body>
-    <header>
-        <div class="container">
-            <div class="header-content">
-                <div>
-                    <h1>Ma Kinklist</h1>
-                    <p class="subtitle">Explorez et partagez vos préférences</p>
-                </div>
-                <button id="share-site-btn" class="btn btn-header" title="Partager le site">Partager le site</button>
-            </div>
+<body class="theme-nocturne">
+    <a class="skip-link" href="#kinklist-container">Aller à la liste</a>
+
+    <header class="site-header">
+        <div class="container header-content">
+            <a class="site-brand" href="./" aria-label="Accueil Ma Kinklist">
+                <span class="site-brand-logo" aria-hidden="true"><img src="favicon.svg" alt=""></span>
+                <span class="site-brand-copy">
+                    <strong>Ma Kinklist</strong>
+                    <small>Explorer · Comprendre · Partager</small>
+                </span>
+            </a>
+            <button id="share-site-btn" class="btn btn-header" type="button" title="Partager le site">Partager le site</button>
         </div>
     </header>
 
-    <main class="container">
-        <section class="intro-section" aria-labelledby="intro-title">
-            <h2 id="intro-title">Comment utiliser Ma Kinklist&nbsp;?</h2>
-            <p class="intro-lead">
-                Cette liste vous aide à explorer vos envies, exprimer vos limites et préparer une discussion avec vos partenaires. Elle ne remplace pas une conversation ni un consentement clair et continu.
-            </p>
-            <ol class="intro-steps">
-                <li>
-                    <strong>Choisissez un statut</strong>
-                    <span>Pour chaque kink, indiquez si vous adorez, aimez, êtes curieux·se, hésitez, refusez ou le considérez comme une limite stricte.</span>
-                </li>
-                <li>
-                    <strong>Précisez votre rôle</strong>
-                    <span>Utilisez les flèches Donne et Reçoit si cette distinction s'applique à la pratique. Vous pouvez sélectionner les deux.</span>
-                </li>
-                <li>
-                    <strong>Partagez votre liste</strong>
-                    <span>Générez un lien ou exportez une image regroupant les kinks que vous avez renseignés.</span>
-                </li>
-            </ol>
-            <p class="intro-note">
-                <strong>Tout est facultatif.</strong> Vous n'avez pas besoin de remplir toutes les informations personnelles ni de noter tous les kinks. Les champs personnels laissés vides et les kinks sans statut n'apparaîtront pas dans l'image exportée.
-            </p>
-        </section>
+    <main class="container app-shell">
+        <aside class="app-sidebar">
+            <section class="intro-section" aria-labelledby="intro-title">
+                <span class="section-eyebrow">Votre espace personnel</span>
+                <div class="guide-pages" aria-label="Comment utiliser Ma Kinklist">
+                    <article class="guide-page guide-welcome active" aria-hidden="false">
+                        <h1 id="intro-title">Exprimez vos envies, simplement.</h1>
+                        <p class="intro-lead">Cette liste vous aide à explorer vos envies, exprimer vos limites et préparer une discussion avec vos partenaires. Elle ne remplace pas une conversation ni un consentement clair et continu.</p>
+                        <p class="intro-note"><strong>Tout est facultatif.</strong> Les informations personnelles laissées vides et les kinks sans statut n'apparaîtront pas dans l'image exportée.</p>
+                    </article>
 
-        <section class="personal-info-section">
-            <h2>Informations personnelles</h2>
-            <div class="personal-info-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="user-name">Nom</label>
-                        <input type="text" id="user-name" placeholder="Votre nom ou pseudo" aria-label="Nom">
+                    <article class="guide-page guide-step" aria-hidden="true">
+                        <div class="guide-step-heading">
+                            <span>Étape 01</span>
+                            <span class="guide-icon" aria-hidden="true"><i class="icon icon-love"></i></span>
+                        </div>
+                        <h2>Choisissez un statut</h2>
+                        <p>Pour chaque kink, indiquez si vous adorez, aimez, êtes curieux·se, hésitez, refusez ou le considérez comme une limite stricte.</p>
+                        <div class="guide-status-preview" aria-hidden="true">
+                            <span><i class="icon icon-love"></i>Adore</span>
+                            <span><i class="icon icon-like"></i>Aime</span>
+                            <span><i class="icon icon-curious"></i>Curieux</span>
+                            <span><i class="icon icon-maybe"></i>Peut-être</span>
+                            <span><i class="icon icon-no"></i>Non</span>
+                            <span><i class="icon icon-limit"></i>Limite</span>
+                        </div>
+                    </article>
+
+                    <article class="guide-page guide-step" aria-hidden="true">
+                        <div class="guide-step-heading">
+                            <span>Étape 02</span>
+                            <span class="guide-icon guide-role-icon" aria-hidden="true">→ ←</span>
+                        </div>
+                        <h2>Précisez votre rôle</h2>
+                        <p>Utilisez Donne et Reçoit si cette distinction s'applique à la pratique. Vous pouvez sélectionner les deux rôles ensemble.</p>
+                        <div class="guide-role-preview" aria-hidden="true">
+                            <span class="gives"><b>→</b><small>Donne</small></span>
+                            <span class="receives"><b>←</b><small>Reçoit</small></span>
+                        </div>
+                    </article>
+
+                    <article class="guide-page guide-step" aria-hidden="true">
+                        <div class="guide-step-heading">
+                            <span>Étape 03</span>
+                            <span class="guide-icon" aria-hidden="true">↗</span>
+                        </div>
+                        <h2>Partagez votre liste</h2>
+                        <p>Générez un lien ou exportez une image regroupant uniquement les kinks que vous avez renseignés.</p>
+                        <div class="guide-share-preview" aria-hidden="true">
+                            <span><b>↗</b><small>Lien privé</small></span>
+                            <span><b>▧</b><small>Image unique</small></span>
+                        </div>
+                    </article>
+                </div>
+
+                <nav class="guide-navigation" aria-label="Sélecteur des pages d'aide">
+                    <button id="guide-previous" class="guide-nav-button" type="button" aria-label="Page précédente" disabled><span aria-hidden="true">←</span></button>
+                    <div class="guide-pagination" aria-label="Choisir une page">
+                        <button type="button" data-guide-page="0" class="active" aria-current="page" aria-label="Page 1 : Exprimez vos envies">1</button>
+                        <button type="button" data-guide-page="1" aria-label="Page 2 : Choisissez un statut">2</button>
+                        <button type="button" data-guide-page="2" aria-label="Page 3 : Précisez votre rôle">3</button>
+                        <button type="button" data-guide-page="3" aria-label="Page 4 : Partagez votre liste">4</button>
                     </div>
-                    <div class="form-group">
-                        <label for="user-gender">Genre</label>
-                        <input type="text" id="user-gender" placeholder="Votre genre" aria-label="Genre">
+                    <button id="guide-next" class="guide-nav-button" type="button" aria-label="Page suivante"><span aria-hidden="true">→</span></button>
+                </nav>
+            </section>
+
+            <section class="personal-info-section" aria-labelledby="personal-title">
+                <div class="panel-title"><span>01</span><h2 id="personal-title">À propos de vous</h2></div>
+                <div class="personal-info-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="user-name">Pseudo</label>
+                            <input type="text" id="user-name" placeholder="Nom ou pseudo" aria-label="Pseudo">
+                        </div>
+                        <div class="form-group">
+                            <label for="user-sexuality">Orientation</label>
+                            <input type="text" id="user-sexuality" placeholder="Votre orientation" aria-label="Orientation">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="user-gender">Genre</label>
+                            <input type="text" id="user-gender" placeholder="Votre genre" aria-label="Genre">
+                        </div>
+                        <div class="form-group">
+                            <label for="user-preference">Rôle</label>
+                            <select id="user-preference" aria-label="Rôle">
+                                <option value="">Non renseigné</option>
+                                <option value="Top">Top</option>
+                                <option value="Bottom">Bottom</option>
+                                <option value="Switch">Switch</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="user-sexuality">Sexualité</label>
-                        <input type="text" id="user-sexuality" placeholder="Votre sexualité" aria-label="Sexualité">
-                    </div>
-                    <div class="form-group">
-                        <label for="user-preference">Préférence</label>
-                        <select id="user-preference" aria-label="Préférence">
-                            <option value="">Sélectionnez...</option>
-                            <option value="Top">Top</option>
-                            <option value="Bottom">Bottom</option>
-                            <option value="Switch">Switch</option>
-                        </select>
-                    </div>
+            </section>
+
+            <section class="legend-section" aria-labelledby="legend-title">
+                <div class="panel-title"><span>02</span><h2 id="legend-title">Légende</h2></div>
+                <div class="legend">
+                    <div class="legend-item"><span class="icon icon-love" aria-hidden="true"></span><span class="icon-label">J'adore</span></div>
+                    <div class="legend-item"><span class="icon icon-like" aria-hidden="true"></span><span class="icon-label">J'aime</span></div>
+                    <div class="legend-item"><span class="icon icon-curious" aria-hidden="true"></span><span class="icon-label">Curieux·se</span></div>
+                    <div class="legend-item"><span class="icon icon-maybe" aria-hidden="true"></span><span class="icon-label">Peut-être</span></div>
+                    <div class="legend-item"><span class="icon icon-no" aria-hidden="true"></span><span class="icon-label">Non merci</span></div>
+                    <div class="legend-item"><span class="icon icon-limit" aria-hidden="true"></span><span class="icon-label">Hard Limit</span></div>
+                    <div class="legend-item"><span class="legend-role-arrow legend-role-gives" aria-hidden="true">→</span><span class="icon-label">Donne</span></div>
+                    <div class="legend-item"><span class="legend-role-arrow legend-role-receives" aria-hidden="true">←</span><span class="icon-label">Reçoit</span></div>
                 </div>
+            </section>
+        </aside>
+
+        <section class="app-content" aria-labelledby="preferences-title">
+            <div class="content-heading">
+                <span class="section-eyebrow">03 · La liste</span>
+                <h2 id="preferences-title">Vos préférences</h2>
+                <p>Survolez ou sélectionnez le nom d'un kink pour lire sa définition.</p>
             </div>
-        </section>
 
-        <section class="legend-section">
-            <h2>Légende</h2>
-            <div class="legend">
-                <div class="legend-item">
-                    <span class="icon icon-love" aria-label="J'adore"></span>
-                    <span class="icon-label">J'adore</span>
+            <section class="controls-section" aria-label="Filtres et actions">
+                <div class="controls">
+                    <label class="search-control"><span aria-hidden="true">⌕</span><input type="text" id="search" placeholder="Rechercher un kink..." aria-label="Rechercher dans la liste"></label>
+                    <button id="expand-all-btn" class="btn btn-toggle" type="button">Tout déplier</button>
+                    <button id="collapse-all-btn" class="btn btn-toggle" type="button">Tout replier</button>
+                    <button id="share-btn" class="btn btn-primary" type="button">Partager</button>
+                    <button id="export-image-btn" class="btn btn-primary" type="button">Exporter l'image</button>
+                    <button id="reset-btn" class="btn btn-danger" type="button">Réinitialiser</button>
                 </div>
-                <div class="legend-item">
-                    <span class="icon icon-like" aria-label="J'aime"></span>
-                    <span class="icon-label">J'aime</span>
-                </div>
-                <div class="legend-item">
-                    <span class="icon icon-curious" aria-label="Curieux/se"></span>
-                    <span class="icon-label">Curieux/se</span>
-                </div>
-                <div class="legend-item">
-                    <span class="icon icon-maybe" aria-label="Peut-être"></span>
-                    <span class="icon-label">Peut-être</span>
-                </div>
-                <div class="legend-item">
-                    <span class="icon icon-no" aria-label="Non merci"></span>
-                    <span class="icon-label">Non merci</span>
-                </div>
-                <div class="legend-item">
-                    <span class="icon icon-limit" aria-label="Hard Limit"></span>
-                    <span class="icon-label">Hard Limit</span>
-                </div>
-                <div class="legend-separator"></div>
-                <div class="legend-item">
-                    <span class="legend-role-arrow legend-role-gives" aria-label="Donne">&#x2192;</span>
-                    <span class="icon-label">Donne</span>
-                </div>
-                <div class="legend-item">
-                    <span class="legend-role-arrow legend-role-receives" aria-label="Re&#231;oit">&#x2190;</span>
-                    <span class="icon-label">Re&#231;oit</span>
-                </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="controls-section">
-            <div class="controls">
-                <input type="text" id="search" placeholder="Rechercher un kink..." aria-label="Rechercher dans la liste">
-                <select id="category-filter" aria-label="Filtrer par catégorie">
-                    <option value="all">Toutes les catégories</option>
-                </select>
-                <select id="status-filter" aria-label="Filtrer par statut">
-                    <option value="all">Tous les statuts</option>
-                    <option value="selected">Sélectionnés uniquement</option>
-                    <option value="love">J'adore</option>
-                    <option value="like">J'aime</option>
-                    <option value="curious">Curieux/se</option>
-                    <option value="maybe">Peut-être</option>
-                    <option value="no">Non merci</option>
-                    <option value="limit">Hard Limit</option>
-                </select>
-                <button id="expand-all-btn" class="btn btn-toggle" type="button">Tout déplier</button>
-                <button id="collapse-all-btn" class="btn btn-toggle" type="button">Tout replier</button>
-                <button id="share-btn" class="btn btn-primary">Partager</button>
-                <button id="export-image-btn" class="btn btn-primary">Exporter (Image)</button>
-                <button id="reset-btn" class="btn btn-danger">Réinitialiser</button>
-            </div>
-        </section>
-
-        <section class="kinklist-section">
-            <div id="kinklist-container"></div>
+            <section class="kinklist-section">
+                <div id="kinklist-container" tabindex="-1"></div>
+            </section>
         </section>
     </main>
 
     <footer>
-        <div class="container">
+        <div class="container footer-content">
+            <span>Ma Kinklist · Explorer ses préférences</span>
             <p class="developer-credit">Développé par <a href="https://x.com/eldayia" target="_blank" rel="noopener noreferrer">Eldayia</a></p>
         </div>
     </footer>
 
     <script src="kinks-data.js?v=3.3.0"></script>
-    <script src="kinks-definitions.js?v=3.4.0"></script>
-    <script src="script.js?v=3.5.0"></script>
+    <script src="kinks-definitions.js?v=3.5.1"></script>
+    <script src="script.js?v=3.7.0"></script>
 </body>
 </html>

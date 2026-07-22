@@ -30,10 +30,7 @@ Chaque forme utilise également une couleur pour un double encodage, mais les fo
 - **Rôle Donne/Reçois** : Pour chaque kink, précisez si vous donnez, recevez, ou les deux (flèches → ← avec couleurs distinctes)
 - **Tooltips** : Survolez une icône pour voir son label (J'adore, J'aime, etc.)
 - **Recherche** : Trouvez rapidement des kinks spécifiques
-- **Filtres** :
-  - Par catégorie
-  - Par statut de sélection
-  - Combinaison des filtres
+- **Catégories détaillées** : Chaque catégorie possède un numéro stable et une courte description
 - **Partage par lien** : Générez un lien court à identifiant aléatoire pour partager vos sélections et rôles
 - **Export en image** : Exportez toute votre kinklist dans une seule image haute qualité, avec libellés complets et indicateurs de rôle (→ ←)
 - **Bouton de partage du site** : Copiez facilement le lien du site depuis le header
@@ -167,10 +164,8 @@ Le backend expose les endpoints suivants :
 4. Cliquez sur les deux pour indiquer les deux rôles (switch)
 5. Les rôles sont sauvegardés et inclus dans les liens partagés et exports image
 
-### Rechercher et filtrer
+### Rechercher
 - Utilisez la barre de recherche pour trouver des kinks spécifiques
-- Sélectionnez une catégorie dans le menu déroulant
-- Filtrez par statut pour voir uniquement vos sélections
 
 ### Partager vos sélections
 1. Cliquez sur "Partager" dans les contrôles
@@ -192,7 +187,7 @@ Cliquez sur "Partager le site" dans le header pour copier le lien https://kink.e
 
 ## 🧪 Outils de test développeur
 
-Une commande privée permet de remplir automatiquement l'intégralité de la kinklist afin de tester les filtres, le partage et la génération d'image sans sélectionner manuellement chaque kink.
+Une commande privée permet de remplir automatiquement l'intégralité de la kinklist afin de tester la recherche, le partage et la génération d'image sans sélectionner manuellement chaque kink.
 
 Ouvrez la console du navigateur avec `F12`, puis utilisez :
 

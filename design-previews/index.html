@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Propositions visuelles — Ma Kinklist</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Playfair+Display:wght@700&display=swap');
+        * { box-sizing: border-box; }
+        body { margin: 0; min-width: 320px; background: #f3f0f2; color: #241f23; font-family: Manrope, sans-serif; }
+        main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 70px 0; }
+        .eyebrow { color: #96385f; font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+        h1 { max-width: 760px; margin: 10px 0 16px; font-family: "Playfair Display", serif; font-size: clamp(2.7rem, 7vw, 5.7rem); line-height: .95; letter-spacing: -.055em; }
+        .lead { max-width: 720px; color: #6d636a; font-size: 1.05rem; line-height: 1.65; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 50px; }
+        article { display: flex; flex-direction: column; min-height: 430px; overflow: hidden; border: 1px solid #ddd4da; border-radius: 22px; background: #fff; box-shadow: 0 16px 40px rgba(49,31,43,.06); }
+        .visual { position: relative; height: 210px; overflow: hidden; }
+        .visual::before, .visual::after { content: ""; position: absolute; border-radius: 15px; }
+        .visual::before { inset: 30px 26px 48px; }
+        .visual::after { left: 44px; right: 44px; bottom: 26px; height: 54px; }
+        .editorial .visual { background: #fbf7f2; }
+        .editorial .visual::before { border: 1px solid #e8ded5; background: #fffdf9; }
+        .editorial .visual::after { background: #96385f; opacity: .82; }
+        .cockpit .visual { background: #eef3fb; }
+        .cockpit .visual::before { border-left: 70px solid #15213b; background: #fff; box-shadow: 0 0 0 1px #dbe3ef; }
+        .cockpit .visual::after { background: linear-gradient(90deg, #2563eb 25%, #dbe3ef 25%); }
+        .nocturne .visual { background: radial-gradient(circle at 80% 10%, #4b1836, #110d12 60%); }
+        .nocturne .visual::before { border: 1px solid #513147; background: rgba(31,20,29,.85); }
+        .nocturne .visual::after { background: linear-gradient(90deg, #ff4f91, #9d6cff); opacity: .78; }
+        .copy { display: flex; flex: 1; flex-direction: column; padding: 23px; }
+        .number { color: #96385f; font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
+        h2 { margin: 7px 0 9px; font-size: 1.35rem; }
+        p { color: #6d636a; font-size: .87rem; line-height: 1.55; }
+        a { display: inline-flex; align-items: center; justify-content: space-between; margin-top: auto; padding: 13px 15px; border-radius: 11px; background: #292129; color: #fff; font-size: .82rem; font-weight: 800; text-decoration: none; }
+        a:hover { background: #96385f; }
+        a:focus-visible { outline: 3px solid #3b82f6; outline-offset: 3px; }
+        .note { margin-top: 28px; padding: 17px 20px; border-radius: 14px; background: #e9e3e7; color: #625760; font-size: .82rem; }
+        @media (max-width: 850px) { .grid { grid-template-columns: 1fr; } article { min-height: 0; } }
+    </style>
+</head>
+<body>
+    <main>
+        <span class="eyebrow">Exploration visuelle · Juillet 2026</span>
+        <h1>Trois directions pour Ma Kinklist.</h1>
+        <p class="lead">Ces prototypes utilisent les mêmes contenus et interactions pour permettre une comparaison honnête. Ils sont totalement séparés du site actuel.</p>
+        <section class="grid" aria-label="Propositions de design">
+            <article class="editorial">
+                <div class="visual" aria-hidden="true"></div>
+                <div class="copy"><span class="number">CONCEPT 01</span><h2>Éditorial doux</h2><p>Chaleureux, rassurant et très lisible. Il traite la kinklist comme un carnet personnel haut de gamme.</p><a href="editorial.html">Voir la maquette <span>→</span></a></div>
+            </article>
+            <article class="cockpit">
+                <div class="visual" aria-hidden="true"></div>
+                <div class="copy"><span class="number">CONCEPT 02</span><h2>Cockpit compact</h2><p>Plus dense et utilitaire. Il donne la priorité au parcours rapide des centaines d’entrées et à l’état d’avancement.</p><a href="cockpit.html">Voir la maquette <span>→</span></a></div>
+            </article>
+            <article class="nocturne">
+                <div class="visual" aria-hidden="true"></div>
+                <div class="copy"><span class="number">CONCEPT 03</span><h2>Nuit velours</h2><p>Sombre, intime et plus affirmé, sans perdre les formes géométriques nécessaires à l’accessibilité.</p><a href="nocturne.html">Voir la maquette <span>→</span></a></div>
+            </article>
+        </section>
+        <div class="note">Astuce : déplie une catégorie, sélectionne quelques statuts et redimensionne la fenêtre. Les trois versions partagent la même démonstration interactive.</div>
+    </main>
+</body>
+</html>

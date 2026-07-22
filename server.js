@@ -29,7 +29,9 @@ const PUBLIC_FILES = new Set([
     'script.js',
     'kinks-data.js',
     'kinks-definitions.js',
-    'favicon.svg'
+    'favicon.svg',
+    'inter-latin.woff2',
+    'playfair-display-latin.woff2'
 ]);
 const configuredOrigins = new Set(
     (process.env.ALLOWED_ORIGINS || 'https://kink.eldayia.fr')

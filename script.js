@@ -38,16 +38,64 @@ function clearShareHash() {
 // Status types
 const STATUS_TYPES = ['love', 'like', 'curious', 'maybe', 'no', 'limit'];
 
+const CATEGORY_DESCRIPTIONS = Object.freeze({
+    'BDSM général & Domination': 'Pouvoir, règles et dynamiques de contrôle',
+    'Impact Play - Outils & Intensité': "Instruments d'impact et niveaux d'intensité",
+    'Sensations - Température & Corps': 'Contrastes thermiques, pressions et sensations physiques',
+    'Oral, Pénétration & Jouets classiques': 'Pratiques orales, pénétration et accessoires courants',
+    'Fluides corporels': 'Salive, sperme, urine et autres fluides corporels',
+    'Lieux publics, Clubs & Exhibition': 'Exhibition, voyeurisme et lieux réservés aux adultes',
+    'Roleplay - Archétypes classiques': "Rôles d'autorité, métiers et rencontres fictives",
+    'Partenaires multiples - Pratiques classiques': 'Trios, groupes et configurations à plusieurs',
+    'Fétichisme': 'Parties du corps, matières et objets fétichisés',
+    'Humiliation, Dégradation & Contrôle sexuel': "Dégradation, objectification et contrôle de l'orgasme",
+    'Jeu Mental & Psychologique': 'Suggestion, anticipation et jeux psychologiques',
+    'Médical, Aiguilles & Body Mod': 'Scénarios médicaux, aiguilles et modifications corporelles',
+    'Restrictions & Contrôle relationnel': 'Règles, suivi et contrôle consenti du quotidien',
+    'Romance & Sensualité': 'Tendresse, connexion et sensualité',
+    'Extrême & Edge Play': 'Pratiques à risque élevé et scénarios extrêmes',
+    'Technologie, Pornographie & Distance': 'Contenus adultes, distance et outils numériques',
+    'Situations & Contextes': 'Contextes, rythmes et circonstances de rencontre',
+    'Communication & Négociation': 'Limites, signaux et échanges avant ou après une scène',
+    'Dynamiques D/s & Échange de pouvoir': 'Domination, soumission et échanges de pouvoir',
+    'Bondage & Immobilisation': 'Cordes, attaches et restrictions de mouvement',
+    'Impact Play - Pratiques & Rituels': 'Gestes, rituels et conséquences liés aux impacts',
+    'Sensations - Textures & Électricité': 'Textures, température, privation sensorielle et électricité',
+    'Masturbation & Plaisir non pénétratif': 'Stimulation manuelle, frottements et plaisir externe',
+    'Pratiques orales complémentaires': 'Variantes et rythmes de stimulation orale',
+    'Pénétration - Techniques & Rythmes': 'Positions, profondeurs et rythmes de pénétration',
+    'Jouets & Machines': 'Accessoires intimes, plugs et appareils motorisés',
+    'Orgasme, Edging & Chasteté': "Contrôle, retard et déclenchement de l'orgasme",
+    'Jeux génitaux': 'Pressions, liens et sensations appliqués aux organes génitaux',
+    'Messy Play & Fluides complémentaires': 'Fluides, matières salissantes et jeux sensoriels associés',
+    'Exhibition & Médias': 'Photographie, vidéo, observation et exposition consentie',
+    'Non-monogamie, Échangisme & Groupe': 'Relations ouvertes, échange et sexualité de groupe',
+    'Roleplay - Fantastique & Scénarios': 'Personnages fantastiques et scénarios fictifs entre adultes',
+    'Furry & Creature Play': 'Univers anthropomorphes, créatures et transformations imaginaires',
+    'Pet Play': 'Rôles animaux, dressage et relation handler/pet',
+    'ABDL & Ageplay adulte': 'Couches, Little space et relations caregiver/Little entre adultes',
+    'Corps & Apparence': 'Morphologie, pilosité et modifications visibles du corps',
+    'Vêtements & Matières': 'Lingerie, uniformes et matières portées',
+    'Masques & Anonymat': 'Dissimulation du visage, identité et dépersonnalisation',
+    'Humiliation & Adoration corporelle': 'Louange, humiliation et usage symbolique du corps',
+    'Contrôle quotidien & Discipline': 'Protocoles, tâches et discipline dans la vie courante',
+    'Fear Play & Intimidation': 'Peur contrôlée, poursuite et intimidation fictive',
+    'Médical - Examens & Hôpital': 'Examens, soins et environnement hospitalier simulés',
+    'Intimité & Aftercare': 'Affection, récupération et suivi après les scènes',
+    'Technologie interactive & Connectée': 'Jouets connectés, commandes à distance et environnements virtuels',
+    'Consentement & Sécurité pratique': 'Prévention, consentement et sécurité physique ou émotionnelle'
+});
+
 // Initialize the app
 document.addEventListener('DOMContentLoaded', async () => {
     loadFromLocalStorage();
     loadRolesFromLocalStorage();
     loadUserInfoFromLocalStorage();
     populateUserInfoFields();
+    setupGuideCarousel();
     await loadSharedData(); // Check for shared data in URL (async)
     renderKinklist();
     setupEventListeners();
-    populateCategoryFilter();
 });
 
 // Load selections from localStorage
@@ -173,9 +221,23 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
         toggleButton.setAttribute('aria-expanded', String(isExpanded));
         toggleButton.setAttribute('aria-controls', gridId);
 
+        const indexSpan = document.createElement('span');
+        indexSpan.className = 'category-index';
+        indexSpan.textContent = String(categoryIndex + 1).padStart(2, '0');
+
+        const categoryCopy = document.createElement('span');
+        categoryCopy.className = 'category-copy';
+
         const titleSpan = document.createElement('span');
         titleSpan.className = 'category-title';
         titleSpan.textContent = category;
+
+        const descriptionSpan = document.createElement('span');
+        descriptionSpan.className = 'category-description';
+        descriptionSpan.textContent = CATEGORY_DESCRIPTIONS[category];
+
+        categoryCopy.appendChild(titleSpan);
+        categoryCopy.appendChild(descriptionSpan);
 
         const countSpan = document.createElement('span');
         countSpan.className = 'category-count';
@@ -195,7 +257,8 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
 
         headerMeta.appendChild(countSpan);
         headerMeta.appendChild(chevron);
-        toggleButton.appendChild(titleSpan);
+        toggleButton.appendChild(indexSpan);
+        toggleButton.appendChild(categoryCopy);
         toggleButton.appendChild(headerMeta);
         headerDiv.appendChild(toggleButton);
 
@@ -233,6 +296,53 @@ function renderKinklist(filterCategory = 'all', filterStatus = 'all', searchTerm
         noResults.innerHTML = '<h3>Aucun résultat trouvé</h3><p>Essayez de modifier vos filtres</p>';
         container.appendChild(noResults);
     }
+}
+
+function setupGuideCarousel() {
+    const container = document.querySelector('.guide-pages');
+    const previousButton = document.getElementById('guide-previous');
+    const nextButton = document.getElementById('guide-next');
+    const pageButtons = Array.from(document.querySelectorAll('[data-guide-page]'));
+
+    if (!container || !previousButton || !nextButton || pageButtons.length === 0) return;
+
+    const pages = Array.from(container.querySelectorAll('.guide-page'));
+    let activePage = 0;
+
+    function showPage(index, direction = 'next') {
+        activePage = Math.max(0, Math.min(index, pages.length - 1));
+        container.dataset.direction = direction;
+
+        pages.forEach((page, pageIndex) => {
+            const active = pageIndex === activePage;
+            page.classList.toggle('active', active);
+            page.setAttribute('aria-hidden', String(!active));
+        });
+
+        pageButtons.forEach((button, pageIndex) => {
+            const active = pageIndex === activePage;
+            button.classList.toggle('active', active);
+            if (active) {
+                button.setAttribute('aria-current', 'page');
+            } else {
+                button.removeAttribute('aria-current');
+            }
+        });
+
+        previousButton.disabled = activePage === 0;
+        nextButton.disabled = activePage === pages.length - 1;
+    }
+
+    previousButton.addEventListener('click', () => showPage(activePage - 1, 'previous'));
+    nextButton.addEventListener('click', () => showPage(activePage + 1, 'next'));
+
+    pageButtons.forEach((button, pageIndex) => {
+        button.addEventListener('click', () => {
+            showPage(pageIndex, pageIndex < activePage ? 'previous' : 'next');
+        });
+    });
+
+    showPage(0);
 }
 
 function updateCategoryExpansion(categoryElement, expanded) {
@@ -508,18 +618,6 @@ function setupEventListeners() {
         applyFilters();
     });
 
-    // Category filter
-    const categoryFilter = document.getElementById('category-filter');
-    categoryFilter.addEventListener('change', () => {
-        applyFilters();
-    });
-
-    // Status filter
-    const statusFilter = document.getElementById('status-filter');
-    statusFilter.addEventListener('change', () => {
-        applyFilters();
-    });
-
     document.getElementById('expand-all-btn').addEventListener('click', () => {
         setAllCategoriesExpanded(true);
     });
@@ -550,22 +648,7 @@ function setupEventListeners() {
 // Apply filters
 function applyFilters() {
     const searchTerm = document.getElementById('search').value;
-    const categoryFilter = document.getElementById('category-filter').value;
-    const statusFilter = document.getElementById('status-filter').value;
-
-    renderKinklist(categoryFilter, statusFilter, searchTerm);
-}
-
-// Populate category filter
-function populateCategoryFilter() {
-    const categoryFilter = document.getElementById('category-filter');
-
-    Object.keys(kinksData).forEach(category => {
-        const option = document.createElement('option');
-        option.value = category;
-        option.textContent = category;
-        categoryFilter.appendChild(option);
-    });
+    renderKinklist('all', 'all', searchTerm);
 }
 
 // Export kinklist as image (robuste avec repli html2canvas)
@@ -738,10 +821,10 @@ async function exportKinklistAsImage() {
                 infoItems.push({ label: 'Genre', value: userInfo.gender });
             }
             if (userInfo.sexuality) {
-                infoItems.push({ label: 'Sexualité', value: userInfo.sexuality });
+                infoItems.push({ label: 'Orientation', value: userInfo.sexuality });
             }
             if (userInfo.preference) {
-                infoItems.push({ label: 'Préférence', value: userInfo.preference });
+                infoItems.push({ label: 'Rôle', value: userInfo.preference });
             }
 
             // Calculer la largeur totale pour centrer
@@ -1162,8 +1245,8 @@ async function exportKinklistAsReadableImage() {
         const infoText = [
             userInfo.name && `Nom : ${userInfo.name}`,
             userInfo.gender && `Genre : ${userInfo.gender}`,
-            userInfo.sexuality && `Sexualité : ${userInfo.sexuality}`,
-            userInfo.preference && `Préférence : ${userInfo.preference}`
+            userInfo.sexuality && `Orientation : ${userInfo.sexuality}`,
+            userInfo.preference && `Rôle : ${userInfo.preference}`
         ].filter(Boolean).join('  •  ');
 
         function measureCategory(category, items, categoryWidth) {
